@@ -1,0 +1,21 @@
+{
+  "parserOptions": {
+    "ecmaVersion": 2017
+  },
+  "extends": "eslint:recommended",
+  "env": {
+    "node": true,
+    "mocha": true
+  },
+  "globals": {
+    "web3": true,
+    "contract": true,
+    "artifacts": true,
+    "assert": true
+  },
+  "rules": {
+    "no-console": "warn",
+    "semi": "error"
+  }
+
+}
