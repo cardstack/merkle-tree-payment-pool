@@ -33,6 +33,8 @@ contract('PaymentPool', function(accounts) {
     beforeEach(async function() {
       token = await Token.new();
       paymentPool = await PaymentPool.new(token.address);
+      await token.mint(miner, 100);
+      await token.approve(paymentPool.address, 100, { from: miner });
     });
 
     xit("can iterate thru payees", async function() {
@@ -58,10 +60,6 @@ contract('PaymentPool', function(accounts) {
     });
 
     it("can allow a miner to post stake with the payment pool", async function() {
-      await token.mint(miner, 100);
-
-      await token.approve(paymentPool.address, 10, { from: miner });
-
       let txn = await paymentPool.postMiningStake(10, { from: miner });
       assert.equal(txn.logs.length, 1, "the number of events is correct");
 
@@ -76,6 +74,7 @@ contract('PaymentPool', function(accounts) {
     });
 
     it("can store the analytics solution", async function() {
+      await paymentPool.postMiningStake(10, { from: miner });
       await paymentPool.startNewEpoch();
 
       let proof = web3.toHex("my proof is pudding");
@@ -87,6 +86,48 @@ contract('PaymentPool', function(accounts) {
 
       console.log("ANALYTICS SOLUTION", JSON.stringify(txn, null, 2));
     });
+
+    it.only("can disburse payments", async function() {
+      let miningStake = 10;
+      let paymentPoolBalance = 100;
+      await token.mint(paymentPool.address, paymentPoolBalance);
+      await paymentPool.postMiningStake(miningStake, { from: miner });
+      await paymentPool.startNewEpoch();
+      let proof = web3.toHex("my proof is pudding");
+      await paymentPool.submitAnalytics(payees, amounts, proof, { from: accounts[1] });
+
+
+      let txn = await paymentPool.disbursePayments();
+
+      console.log(JSON.stringify(txn, null, 2));
+
+      // note payees[1] is also the miner
+      let balance = await token.balanceOf(payees[2]);
+      assert.equal(balance.toNumber(), amounts[2], "balance is correct");
+
+      balance = await token.balanceOf(payees[3]);
+      assert.equal(balance.toNumber(), amounts[3], "balance is correct");
+
+      balance = await token.balanceOf(payees[4]);
+      assert.equal(balance.toNumber(), amounts[4], "balance is correct");
+
+      balance = await token.balanceOf(payees[5]);
+      assert.equal(balance.toNumber(), amounts[5], "balance is correct");
+
+      balance = await token.balanceOf(payees[6]);
+      assert.equal(balance.toNumber(), amounts[6], "balance is correct");
+
+      balance = await token.balanceOf(payees[7]);
+      assert.equal(balance.toNumber(), amounts[7], "balance is correct");
+
+      balance = await token.balanceOf(payees[8]);
+      assert.equal(balance.toNumber(), amounts[8], "balance is correct");
+
+      let amountsTotal = amounts.reduce((total, amount) => total + amount);
+      balance = await token.balanceOf(paymentPool.address);
+      assert.equal(balance.toNumber(), paymentPoolBalance - amountsTotal + miningStake, "balance is correct");
+    });
+
   });
 
 });

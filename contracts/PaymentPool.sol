@@ -17,7 +17,7 @@ contract PaymentPool {
     bytes32 proof;
   }
 
-  uint256 constant MIN_GAS_BAIL_THRESHOLD = 10000;
+  uint256 constant MIN_GAS_BAIL_THRESHOLD = 50000;
 
   ERC20 public token;
   uint256 public payeeIndex;
@@ -26,12 +26,17 @@ contract PaymentPool {
 
   uint256 currentEpochStartBlock;
   uint256 settlementId;
+  uint256 currentQueueJobId;
   mapping(uint256 => AnalyticsSolution) settlementQueue;
 
-  event ProcessPayee(address payee, uint256 amount);
+  // Fired when the payee disbursement cannot be made because paymentpool has been depleted.
+  // Analytics will need to include this payee in next epoch
+  event SkippedPayee(address indexed payee, uint256 amount, uint256 epochNumber);
+  event ProcessedPayee(address indexed payee, uint256 amount, uint256 epochNumber);
   event EpochEnded(uint256 epochNumber, uint256 startBlock, uint256 endBlock);
   event AnalyticsSubmitted(uint256 epochNumber, address[] payees, uint256[] amounts, address miner, bytes32 proof);
   event MiningStake(address indexed miner, uint256 amount);
+  event CompletedSettlementJob(uint256 settlementId, uint256 epochNumber);
 
   event Debug(string msg, uint256 value);
 
@@ -68,6 +73,8 @@ contract PaymentPool {
     // confirm proof? (could be very expensive)...
     // TODO need to cap the number of payees so we don't run out of gas updating the contract state
     // TODO confirm msg.sender is an approved miner for this epoch
+
+    require(miningStake[msg.sender] > 0); // this is a simple check, eventually we need to do something much more thorough
     require(payees.length > 0);
     require(payees.length == amounts.length);
 
@@ -98,15 +105,26 @@ contract PaymentPool {
 
   // breaking out the function to dispurse payments from the pool as it will require
   // mulitple blocks to process
-  function disbursePayments() public {
-    // while (payeeIndex < payees.length && msg.gas > MIN_GAS_BAIL_THRESHOLD) {
-    //   ProcessPayee(payees[payeeIndex], amounts[payeeIndex]);
-    //   payeeIndex = payeeIndex.add(1);
-    // }
+  function disbursePayments() public returns (bool) {
+    AnalyticsSolution storage job = settlementQueue[currentQueueJobId];
+    if (job.payees.length == 0) return true;
 
-    // // vv Everything below here needs to be able to run with MIN_GAS_BAIL_THRESHOLD budget vv
-    // if (payeeIndex >= payees.length) {
-    //   payeeIndex = 0;
-    // }
+    while (payeeIndex < job.payees.length && msg.gas > MIN_GAS_BAIL_THRESHOLD) {
+      if (token.balanceOf(this) >= job.amounts[payeeIndex]) {
+        token.transfer(job.payees[payeeIndex], job.amounts[payeeIndex]);
+        ProcessedPayee(job.payees[payeeIndex], job.amounts[payeeIndex], job.epochNumber);
+      } else {
+        SkippedPayee(job.payees[payeeIndex], job.amounts[payeeIndex], job.epochNumber);
+      }
+      payeeIndex = payeeIndex.add(1);
+    }
+
+    // vv Everything below here needs to be able to run with MIN_GAS_BAIL_THRESHOLD budget vv
+    if (payeeIndex >= job.payees.length) {
+      CompletedSettlementJob(currentQueueJobId, job.epochNumber);
+
+      payeeIndex = 0;
+      currentQueueJobId = currentQueueJobId.add(1);
+    }
   }
 }
