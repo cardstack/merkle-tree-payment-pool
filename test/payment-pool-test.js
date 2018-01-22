@@ -50,12 +50,16 @@ contract('PaymentPool', function(accounts) {
       await token.approve(paymentPool.address, 100, { from: miner });
     });
 
+
+    xit("miner can post mining stake", async function() {
+    });
+
+    //TODO this will eventually be the responsibiliy of the miners
     xit("owner can submit merkle root", async function() {
     });
 
     it.only("payee can withdraw their allotted amount from pool", async function() {
       let payeeIndex = 0;
-      let miningStake = 10;
       let paymentPoolBalance = 100;
 
       let paymentElements = createPaymentLeafNodes(payments);
@@ -64,7 +68,6 @@ contract('PaymentPool', function(accounts) {
       let root = merkleTree.getHexRoot();
 
       await token.mint(paymentPool.address, paymentPoolBalance);
-      await paymentPool.postMiningStake(miningStake, { from: miner });
       await paymentPool.startNewEpoch();
       await paymentPool.submitPayeeMerkleRoot(root);
 
@@ -81,7 +84,7 @@ contract('PaymentPool', function(accounts) {
       let poolBalance = await token.balanceOf(paymentPool.address);
 
       assert.equal(payeeBalance.toNumber(), payments[payeeIndex].amount, 'the payee balance is correct');
-      assert.equal(poolBalance.toNumber(), paymentPoolBalance - payments[payeeIndex].amount + miningStake, 'the pool balance is correct');
+      assert.equal(poolBalance.toNumber(), paymentPoolBalance - payments[payeeIndex].amount, 'the pool balance is correct');
     });
 
     xit("payee cannot withdraw an amount that is different from their alloted amount from the pool", async function() {

@@ -4,8 +4,9 @@ import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import 'zeppelin-solidity/contracts/token/ERC20.sol';
 import 'zeppelin-solidity/contracts/token/SafeERC20.sol';
 import 'zeppelin-solidity/contracts/MerkleProof.sol';
+import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
 
-contract PaymentPool {
+contract PaymentPool is Ownable {
 
   using SafeMath for uint256;
   using SafeERC20 for ERC20;
@@ -55,7 +56,7 @@ contract PaymentPool {
     return true;
   }
 
-  function startNewEpoch() public returns(bool) {
+  function startNewEpoch() public onlyOwner returns(bool) {
     // TODO don't start new epoch if the n - 1 epoch is still unsolved
     // at most there can be 1 unsolved epoch
     require(block.number > currentEpochStartBlock);
@@ -68,7 +69,8 @@ contract PaymentPool {
     return true;
   }
 
-  function submitPayeeMerkleRoot(bytes32 _payeeRoot) public returns(bool) {
+  //TODO this will eventually be the responsibiliy of the miners
+  function submitPayeeMerkleRoot(bytes32 _payeeRoot) public onlyOwner returns(bool) {
     payeeRoot = _payeeRoot;
 
     PayeeMerkleRoot(_payeeRoot);
