@@ -1,5 +1,5 @@
 import MerkleTree from '../lib/merkle-tree';
-import { sha3, bufferToHex } from 'ethereumjs-util';
+import { assertRevert } from './helpers/utils';
 
 const PaymentPool = artifacts.require('./PaymentPool.sol');
 const Token = artifacts.require('./Token.sol');
@@ -13,7 +13,6 @@ contract('PaymentPool', function(accounts) {
   let paymentPool;
   let token;
   let miner = accounts[1];
-
   let payments = [{
     payee: accounts[2],
     amount: 10
@@ -39,8 +38,9 @@ contract('PaymentPool', function(accounts) {
     payee: accounts[9],
     amount: 9
   }];
+  let paymentElements = createPaymentLeafNodes(payments);
 
-  describe("ledger", function() {
+  describe("payment pool", function() {
     beforeEach(async function() {
       let merkleProofLib = await MerkleProofLib.new();
       token = await Token.new();
@@ -50,7 +50,6 @@ contract('PaymentPool', function(accounts) {
       await token.approve(paymentPool.address, 100, { from: miner });
     });
 
-
     xit("miner can post mining stake", async function() {
     });
 
@@ -58,42 +57,75 @@ contract('PaymentPool', function(accounts) {
     xit("owner can submit merkle root", async function() {
     });
 
-    it("payee can withdraw their allotted amount from pool", async function() {
-      let payeeIndex = 0;
-      let paymentPoolBalance = 100;
+    describe("withdraw", function() {
+      const payeeIndex = 0;
+      const paymentPoolBalance = 100;
+      const payee = payments[payeeIndex].payee;
+      const paymentAmount = payments[payeeIndex].amount;
+      const paymentNode = paymentElements[payeeIndex];
+      const merkleTree = new MerkleTree(paymentElements);
+      const root = merkleTree.getHexRoot();
+      const proof = merkleTree.getHexProof(paymentNode);
 
-      let paymentElements = createPaymentLeafNodes(payments);
-      let paymentNode = paymentElements[payeeIndex];
-      let merkleTree = new MerkleTree(paymentElements);
-      let root = merkleTree.getHexRoot();
-
-      await token.mint(paymentPool.address, paymentPoolBalance);
-      await paymentPool.startNewEpoch();
-      await paymentPool.submitPayeeMerkleRoot(root);
-
-      let proof = merkleTree.getHexProof(paymentNode);
-      let txn = await paymentPool.withdraw(payments[payeeIndex].amount, proof, {
-        from: payments[payeeIndex].payee
+      beforeEach(async function() {
+        await token.mint(paymentPool.address, paymentPoolBalance);
+        await paymentPool.startNewEpoch();
+        await paymentPool.submitPayeeMerkleRoot(root);
       });
 
-      let withdrawEvent = txn.logs.find(log => log.event === 'PayeeWithdraw');
-      assert.equal(withdrawEvent.args.payee, payments[payeeIndex].payee, 'event payee is correct');
-      assert.equal(withdrawEvent.args.amount.toNumber(), payments[payeeIndex].amount, 'event amount is correct');
+      it("payee can withdraw their allotted amount from pool", async function() {
+        let txn = await paymentPool.withdraw(paymentAmount, proof, {
+          from: payee
+        });
 
-      let payeeBalance = await token.balanceOf(payments[payeeIndex].payee);
-      let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawEvent = txn.logs.find(log => log.event === 'PayeeWithdraw');
+        assert.equal(withdrawEvent.args.payee, payee, 'event payee is correct');
+        assert.equal(withdrawEvent.args.amount.toNumber(), paymentAmount, 'event amount is correct');
 
-      assert.equal(payeeBalance.toNumber(), payments[payeeIndex].amount, 'the payee balance is correct');
-      assert.equal(poolBalance.toNumber(), paymentPoolBalance - payments[payeeIndex].amount, 'the pool balance is correct');
-    });
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
 
-    xit("payee cannot withdraw an amount that is different from their alloted amount from the pool", async function() {
-    });
+        assert.equal(payeeBalance.toNumber(), paymentAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - paymentAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), paymentAmount, 'the withdrawals amount is correct');
+      });
 
-    xit("payee cannot withdraw their allotted amount more than once", async function() {
-    });
+      it("payee cannot withdraw an amount that is different from their allotted amount from the pool", async function() {
+        await assertRevert(async () => await paymentPool.withdraw(20, proof, {
+          from: payee
+        }));
 
-    xit("payee withdraws their allotted amount from an older epoch", async function() {
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+
+        assert.equal(payeeBalance.toNumber(), 0, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), 0, 'the withdrawals amount is correct');
+      });
+
+      it("payee cannot withdraw their allotted amount more than once", async function() {
+        await paymentPool.withdraw(paymentAmount, proof, {
+          from: payee
+        });
+
+        await assertRevert(async () => await paymentPool.withdraw(paymentAmount, proof, {
+          from: payee
+        }));
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+
+        assert.equal(payeeBalance.toNumber(), paymentAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - paymentAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), paymentAmount, 'the withdrawals amount is correct');
+      });
+
+      xit("payee withdraws their allotted amount from an older epoch", async function() {
+      });
+
     });
 
   });

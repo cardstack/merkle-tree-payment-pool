@@ -25,6 +25,7 @@ contract PaymentPool is Ownable {
   ERC20 public token;
   uint256 public numEpochs;
   mapping(address => uint256) public miningStake;
+  mapping(address => uint256) public withdrawals;
 
   uint256 currentEpochStartBlock;
   bytes32 payeeRoot;
@@ -80,18 +81,21 @@ contract PaymentPool is Ownable {
 
   function withdraw(uint256 amount, bytes proof) public returns(bool) {
     require(amount > 0);
+    require(amount.sub(withdrawals[msg.sender]) > 0);
+
     bytes32 leaf = keccak256('0x',
                              addressToString(msg.sender),
                              ',',
                              uintToString(amount));
     require(proof.verifyProof(payeeRoot, leaf));
 
+    withdrawals[msg.sender] = withdrawals[msg.sender].add(amount);
     token.safeTransfer(msg.sender, amount);
 
     PayeeWithdraw(msg.sender, amount);
   }
 
-  //TODO use SafeMath
+  //TODO use SafeMath and move to lib
   function addressToString(address x) internal pure returns (string) {
     bytes memory s = new bytes(40);
     for (uint256 i = 0; i < 20; i++) {
@@ -104,15 +108,15 @@ contract PaymentPool is Ownable {
     return string(s);
   }
 
-  //TODO use SafeMath
+  //TODO use SafeMath and move to lib
   function char(byte b) internal pure returns (byte c) {
     if (b < 10) return byte(uint8(b) + 0x30);
     else return byte(uint8(b) + 0x57);
   }
 
-  //TODO use SafeMath
+  //TODO use SafeMath and move to lib
   function uintToString(uint256 v) internal pure returns (string) {
-    uint256 maxlength = 100;
+    uint256 maxlength = 80; // 2^256 = 1.157920892E77
     bytes memory reversed = new bytes(maxlength);
     uint256 i = 0;
     while (v != 0) {
