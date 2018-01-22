@@ -58,7 +58,7 @@ contract('PaymentPool', function(accounts) {
     xit("owner can submit merkle root", async function() {
     });
 
-    it.only("payee can withdraw their allotted amount from pool", async function() {
+    it("payee can withdraw their allotted amount from pool", async function() {
       let payeeIndex = 0;
       let paymentPoolBalance = 100;
 
@@ -91,6 +91,9 @@ contract('PaymentPool', function(accounts) {
     });
 
     xit("payee cannot withdraw their allotted amount more than once", async function() {
+    });
+
+    xit("payee withdraws their allotted amount from an older epoch", async function() {
     });
 
   });
