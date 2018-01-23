@@ -124,5 +124,16 @@ contract('PaymentPool', function(accounts) {
 
   });
 
+  describe("popBytes32FromBytes", function() {
+    xit("rejects when bytes is only 32 bytes long", async function() {
+    });
+
+    xit("can handle up to 50 * 32 bytes long", async function() {
+    });
+
+    xit("rejects when bytes is not a multiple of 32 bytes long", async function() {
+    });
+  });
+
 });
 

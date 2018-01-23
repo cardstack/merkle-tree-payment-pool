@@ -118,8 +118,9 @@ contract PaymentPool is Ownable {
 
   //TODO move to lib
   function popBytes32FromBytes(bytes byteArray) internal pure returns (bytes32 firstElement, bytes memory trimmedArray) {
-    // TODO we should probably establish a max array size for gas consumption
-    require(byteArray.length % 32 == 0 && byteArray.length > 32);
+    require(byteArray.length % 32 == 0 &&
+            byteArray.length > 32 &&
+            byteArray.length % 32 <= 50); // Arbitrarily limiting this function to an array of 50 bytes32's to conserve gas
 
     assembly {
       firstElement := mload(add(byteArray, 32))
