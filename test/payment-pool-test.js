@@ -84,7 +84,7 @@ contract('PaymentPool', function(accounts) {
         await paymentPool.submitPayeeMerkleRoot(root);
       });
 
-      it("payee can withdraw their up to their allotted amount from pool", async function() {
+      it("payee can withdraw up to their allotted amount from pool", async function() {
         let txn = await paymentPool.withdraw(paymentAmount, proof, { from: payee });
         // console.log(JSON.stringify(txn, null, 2));
 
@@ -108,7 +108,7 @@ contract('PaymentPool', function(accounts) {
       xit("payee can make mulitple withdrawls within their allotted amount from the pool", async function() {
       });
 
-      xit("payee cannot withdraw more than their alloted amount from the pool", async function() {
+      xit("payee cannot withdraw more than their allotted amount from the pool", async function() {
       });
 
       xit("payee cannot make mulitple withdrawls that total to more than their allotted amount from the pool", async function() {

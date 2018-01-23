@@ -81,21 +81,34 @@ contract PaymentPool is Ownable {
     return true;
   }
 
-  function withdraw(uint256 amount, bytes proof) public returns(bool) {
+  function balanceOf(address _address, bytes proof) public view returns(uint256) {
     bytes32 cumulativeAmountBytes;
     bytes memory _proof;
 
     (cumulativeAmountBytes, _proof) = popBytes32FromBytes(proof);
 
     uint256 cumulativeAmount = uint256(cumulativeAmountBytes);
-    require(amount > 0);
-    require(cumulativeAmount - withdrawals[msg.sender] >= amount);
 
     bytes32 leaf = keccak256('0x',
-                             addressToString(msg.sender),
+                             addressToString(_address),
                              ',',
                              uintToString(cumulativeAmount));
-    require(_proof.verifyProof(payeeRoot, leaf));
+    if (_proof.verifyProof(payeeRoot, leaf)) {
+      return cumulativeAmount.sub(withdrawals[_address]);
+    } else {
+      return 0;
+    }
+  }
+
+  function balanceOf(bytes proof) public view returns(uint256) {
+    return balanceOf(msg.sender, proof);
+  }
+
+  function withdraw(uint256 amount, bytes proof) public returns(bool) {
+    require(amount > 0);
+
+    uint256 balance = balanceOf(proof);
+    require(balance >= amount);
 
     withdrawals[msg.sender] = withdrawals[msg.sender].add(amount);
     token.safeTransfer(msg.sender, amount);
