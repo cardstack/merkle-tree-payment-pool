@@ -37,7 +37,9 @@ contract PaymentPool is Ownable {
 
   event DebugString(string msg, string value);
   event DebugNumber(string msg, uint256 value);
+  event DebugBytes1(string msg, bytes1 value);
   event DebugBytes32(string msg, bytes32 value);
+  event DebugBytes(string msg, bytes value);
 
   function PaymentPool(ERC20 _token) public {
     token = _token;
@@ -80,19 +82,48 @@ contract PaymentPool is Ownable {
   }
 
   function withdraw(uint256 amount, bytes proof) public returns(bool) {
+    bytes32 cumulativeAmountBytes;
+    bytes memory _proof;
+
+    (cumulativeAmountBytes, _proof) = popBytes32FromBytes(proof);
+
+    uint256 cumulativeAmount = uint256(cumulativeAmountBytes);
     require(amount > 0);
-    require(amount.sub(withdrawals[msg.sender]) > 0);
+    require(cumulativeAmount - withdrawals[msg.sender] >= amount);
 
     bytes32 leaf = keccak256('0x',
                              addressToString(msg.sender),
                              ',',
-                             uintToString(amount));
-    require(proof.verifyProof(payeeRoot, leaf));
+                             uintToString(cumulativeAmount));
+    require(_proof.verifyProof(payeeRoot, leaf));
 
     withdrawals[msg.sender] = withdrawals[msg.sender].add(amount);
     token.safeTransfer(msg.sender, amount);
 
     PayeeWithdraw(msg.sender, amount);
+  }
+
+  //TODO move to lib
+  function popBytes32FromBytes(bytes byteArray) internal pure returns (bytes32 firstElement, bytes memory trimmedArray) {
+    // TODO we should probably establish a max array size for gas consumption
+    require(byteArray.length % 32 == 0 && byteArray.length > 32);
+
+    assembly {
+      firstElement := mload(add(byteArray, 32))
+    }
+
+    uint256 newArraySize = byteArray.length.div(32).sub(1).mul(32);
+    trimmedArray = new bytes(newArraySize);
+
+    bytes1 _bytes1;
+    uint256 j = 0;
+    for (uint256 i = 64; i < newArraySize.add(64); i = i.add(1)) {
+      assembly {
+        _bytes1 := mload(add(byteArray, i))
+      }
+      trimmedArray[j] = _bytes1;
+      j = j.add(1);
+    }
   }
 
   //TODO use SafeMath and move to lib

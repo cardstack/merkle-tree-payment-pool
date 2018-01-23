@@ -57,6 +57,17 @@ contract('PaymentPool', function(accounts) {
     xit("owner can submit merkle root", async function() {
     });
 
+    describe("balanceOf", function() {
+      xit("payee can get their available balance in the payment pool from their proof", async function() {
+      });
+
+      xit("non-payee can get the available balance in the payment pool for an address and proof", async function() {
+      });
+
+      xit("an invalid proof/address pair returns a balance of 0 in the payment pool", async function() {
+      });
+    });
+
     describe("withdraw", function() {
       const payeeIndex = 0;
       const paymentPoolBalance = 100;
@@ -65,7 +76,7 @@ contract('PaymentPool', function(accounts) {
       const paymentNode = paymentElements[payeeIndex];
       const merkleTree = new MerkleTree(paymentElements);
       const root = merkleTree.getHexRoot();
-      const proof = merkleTree.getHexProof(paymentNode);
+      const proof = merkleTree.getHexProof(paymentNode, { unshift: paymentAmount });
 
       beforeEach(async function() {
         await token.mint(paymentPool.address, paymentPoolBalance);
@@ -73,10 +84,9 @@ contract('PaymentPool', function(accounts) {
         await paymentPool.submitPayeeMerkleRoot(root);
       });
 
-      it("payee can withdraw their allotted amount from pool", async function() {
-        let txn = await paymentPool.withdraw(paymentAmount, proof, {
-          from: payee
-        });
+      it("payee can withdraw their up to their allotted amount from pool", async function() {
+        let txn = await paymentPool.withdraw(paymentAmount, proof, { from: payee });
+        // console.log(JSON.stringify(txn, null, 2));
 
         let withdrawEvent = txn.logs.find(log => log.event === 'PayeeWithdraw');
         assert.equal(withdrawEvent.args.payee, payee, 'event payee is correct');
@@ -91,36 +101,20 @@ contract('PaymentPool', function(accounts) {
         assert.equal(withdrawals.toNumber(), paymentAmount, 'the withdrawals amount is correct');
       });
 
-      it("payee cannot withdraw an amount that is different from their allotted amount from the pool", async function() {
-        await assertRevert(async () => await paymentPool.withdraw(20, proof, {
-          from: payee
-        }));
 
-        let payeeBalance = await token.balanceOf(payee);
-        let poolBalance = await token.balanceOf(paymentPool.address);
-        let withdrawals = await paymentPool.withdrawals(payee);
-
-        assert.equal(payeeBalance.toNumber(), 0, 'the payee balance is correct');
-        assert.equal(poolBalance.toNumber(), paymentPoolBalance, 'the pool balance is correct');
-        assert.equal(withdrawals.toNumber(), 0, 'the withdrawals amount is correct');
+      xit("payee can make a withdrawal less than their allotted amount from the pool", async function() {
       });
 
-      it("payee cannot withdraw their allotted amount more than once", async function() {
-        await paymentPool.withdraw(paymentAmount, proof, {
-          from: payee
-        });
+      xit("payee can make mulitple withdrawls within their allotted amount from the pool", async function() {
+      });
 
-        await assertRevert(async () => await paymentPool.withdraw(paymentAmount, proof, {
-          from: payee
-        }));
+      xit("payee cannot withdraw more than their alloted amount from the pool", async function() {
+      });
 
-        let payeeBalance = await token.balanceOf(payee);
-        let poolBalance = await token.balanceOf(paymentPool.address);
-        let withdrawals = await paymentPool.withdrawals(payee);
+      xit("payee cannot make mulitple withdrawls that total to more than their allotted amount from the pool", async function() {
+      });
 
-        assert.equal(payeeBalance.toNumber(), paymentAmount, 'the payee balance is correct');
-        assert.equal(poolBalance.toNumber(), paymentPoolBalance - paymentAmount, 'the pool balance is correct');
-        assert.equal(withdrawals.toNumber(), paymentAmount, 'the withdrawals amount is correct');
+      xit("non-payee cannot withdraw from pool", async function() {
       });
 
       xit("payee withdraws their allotted amount from an older epoch", async function() {
