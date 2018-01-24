@@ -12,56 +12,22 @@ contract PaymentPool is Ownable {
   using SafeERC20 for ERC20;
   using MerkleProof for bytes;
 
-  struct AnalyticsSolution {
-    uint256 paymentCycleNumber;
-    address[] payees;
-    uint256[] amounts;
-    address miner;
-    bytes32 proof;
-  }
-
-  uint256 constant MIN_GAS_BAIL_THRESHOLD = 50000;
-
   ERC20 public token;
   uint256 public numPaymentCycles = 1;
-  mapping(address => uint256) public miningStake;
   mapping(address => uint256) public withdrawals;
   mapping(uint256 => bytes32) public payeeRoots;
 
   uint256 currentPaymentCycleStartBlock;
 
-  event MiningStake(address indexed miner, uint256 amount);
   event PaymentCycleEnded(uint256 paymentCycle, uint256 startBlock, uint256 endBlock);
   event PayeeMerkleRoot(bytes32 root, uint256 paymentCycle);
   event PayeeWithdraw(address indexed payee, uint256 amount);
-
-  event DebugString(string msg, string value);
-  event DebugNumber(string msg, uint256 value);
-  event DebugBytes1(string msg, bytes1 value);
-  event DebugBytes32(string msg, bytes32 value);
-  event DebugBytes32Array(string msg, bytes32[] value);
-  event DebugBytes(string msg, bytes value);
 
   function PaymentPool(ERC20 _token) public {
     token = _token;
     currentPaymentCycleStartBlock = block.number;
   }
 
-  // miner needs to first perform an ERC-20 approve of the mining pool so that we can perform a transferFrom of the token
-  function postMiningStake(uint256 amount) public returns (bool) {
-    require(token.allowance(msg.sender, this) >= amount);
-
-    token.safeTransferFrom(msg.sender, this, amount);
-
-    miningStake[msg.sender] = amount;
-
-    MiningStake(msg.sender, amount);
-
-    return true;
-  }
-
-  // TODO move this to public for Tally. For general purpose PaymentPool, it doesn't make sense to
-  // decouple this from the submission of a merkle root
   function startNewPaymentCycle() internal onlyOwner returns(bool) {
     require(block.number > currentPaymentCycleStartBlock);
 
@@ -73,7 +39,6 @@ contract PaymentPool is Ownable {
     return true;
   }
 
-  //TODO this will eventually be the responsibiliy of the miners
   function submitPayeeMerkleRoot(bytes32 payeeRoot) public onlyOwner returns(bool) {
     payeeRoots[numPaymentCycles] = payeeRoot;
 
