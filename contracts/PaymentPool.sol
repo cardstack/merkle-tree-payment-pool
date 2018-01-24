@@ -28,9 +28,6 @@ contract PaymentPool is Ownable {
   mapping(address => uint256) public withdrawals;
   mapping(uint256 => bytes32) public payeeRoots;
 
-  //TODO DELETE THIS
-  bytes32 payeeRoot; 
-
   uint256 currentPaymentCycleStartBlock;
 
   event MiningStake(address indexed miner, uint256 amount);
@@ -102,7 +99,8 @@ contract PaymentPool is Ownable {
                              addressToString(_address),
                              ',',
                              uintToString(cumulativeAmount));
-    if (_proof.verifyProof(payeeRoots[paymentCycleNumber], leaf)) {
+    if (withdrawals[_address] < cumulativeAmount &&
+        _proof.verifyProof(payeeRoots[paymentCycleNumber], leaf)) {
       return cumulativeAmount.sub(withdrawals[_address]);
     } else {
       return 0;

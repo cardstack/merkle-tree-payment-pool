@@ -52,13 +52,6 @@ contract('PaymentPool', function(accounts) {
       await token.approve(paymentPool.address, 100, { from: miner });
     });
 
-    xit("miner can post mining stake", async function() {
-    });
-
-    //TODO this will eventually be the responsibiliy of the miners
-    xit("owner can submit merkle root", async function() {
-    });
-
     describe("submitPayeeMerkleRoot", function() {
       it("starts a new payment cycle after the payee merkle root is submitted", async function() {
         let merkleTree = new MerkleTree(paymentElements);
@@ -86,27 +79,90 @@ contract('PaymentPool', function(accounts) {
         assert.equal(event.args.startBlock, initialBlockNumber, "the payment cycle start block is correct");
         assert.equal(event.args.endBlock, currentBlockNumber, "the payment cycle end block is correct");
       });
+
+      it("allows a new merkle root to be submitted in a block after the previous payment cycle has ended", async function() {
+        let merkleTree = new MerkleTree(paymentElements);
+        let root = merkleTree.getHexRoot();
+        await paymentPool.submitPayeeMerkleRoot(root);
+
+        let updatedPayments = [].concat(payments);
+        updatedPayments[0].amount += 10;
+        let updatedPaymentElements = createPaymentLeafNodes(updatedPayments);
+        let updatedMerkleTree = new MerkleTree(updatedPaymentElements);
+        let updatedRoot = updatedMerkleTree.getHexRoot();
+
+        // do something that causes a block to be mined
+        await token.mint(accounts[0], 1);
+
+        await paymentPool.submitPayeeMerkleRoot(updatedRoot);
+
+        let actualOriginalRoot = await paymentPool.payeeRoots(1);
+        let actualUpdatedRoot = await paymentPool.payeeRoots(2);
+        let paymentCycleNumber = await paymentPool.numPaymentCycles();
+
+        assert.equal(actualOriginalRoot, root, "the root is correct");
+        assert.equal(actualUpdatedRoot, updatedRoot, "the root is correct");
+        assert.notEqual(actualUpdatedRoot, actualOriginalRoot, "the roots are different");
+        assert.equal(paymentCycleNumber.toNumber(), 3, "the payment cycle number is correct");
+      });
+
+      it("does not allow 2 merkle roots to be submitted in the same block after the previous payment cycle has ended", async function() {
+        let merkleTree = new MerkleTree(paymentElements);
+        let root = merkleTree.getHexRoot();
+        await paymentPool.submitPayeeMerkleRoot(root);
+
+        let updatedPayments = [].concat(payments);
+        updatedPayments[0].amount += 10;
+        let updatedPaymentElements = createPaymentLeafNodes(updatedPayments);
+        let updatedMerkleTree = new MerkleTree(updatedPaymentElements);
+        let updatedRoot = updatedMerkleTree.getHexRoot();
+
+        await assertRevert(async () => await paymentPool.submitPayeeMerkleRoot(updatedRoot));
+
+        let actualOriginalRoot = await paymentPool.payeeRoots(1);
+        let actualUpdatedRoot = await paymentPool.payeeRoots(2);
+        let paymentCycleNumber = await paymentPool.numPaymentCycles();
+
+        assert.equal(actualOriginalRoot, root, "the original root is correct");
+        assert.equal(actualUpdatedRoot, "0x0000000000000000000000000000000000000000000000000000000000000000", "the updated root is correct");
+        assert.equal(paymentCycleNumber.toNumber(), 2, "the payment cycle number is correct");
+      });
+
+      it("does not allow non-owner to submit merkle root", async function() {
+        let merkleTree = new MerkleTree(paymentElements);
+        let root = merkleTree.getHexRoot();
+
+        await assertRevert(async () => paymentPool.submitPayeeMerkleRoot(root, { from: accounts[2] }));
+        let paymentCycleNumber = await paymentPool.numPaymentCycles();
+        let actualRoot = await paymentPool.payeeRoots(1);
+
+        assert.equal(paymentCycleNumber.toNumber(), 1, "the payment cycle number is correct");
+        assert.equal(actualRoot, "0x0000000000000000000000000000000000000000000000000000000000000000", "the payee merkle root is correct");
+      });
     });
 
     describe("balanceForProof", function() {
-      let currentPaymentCycle = 1;
-      const payeeIndex = 0;
-      const paymentPoolBalance = 100;
-      const payee = payments[payeeIndex].payee;
-      const paymentAmount = payments[payeeIndex].amount;
-      const paymentNode = paymentElements[payeeIndex];
-      const merkleTree = new MerkleTree(paymentElements);
-      const root = merkleTree.getHexRoot();
-      const proof = merkleTree.getHexProof(paymentNode, [ currentPaymentCycle, paymentAmount ]);
+      let paymentPoolBalance;
+      let paymentCycle;
+      let proof;
+      let payeeIndex = 0;
+      let payee = payments[payeeIndex].payee;
+      let paymentAmount = payments[payeeIndex].amount;
+      let paymentNode = paymentElements[payeeIndex];
+      let merkleTree = new MerkleTree(paymentElements);
+      let root = merkleTree.getHexRoot();
 
       beforeEach(async function() {
+        paymentPoolBalance = 100;
         await token.mint(paymentPool.address, paymentPoolBalance);
+        paymentCycle = await paymentPool.numPaymentCycles();
+        paymentCycle = paymentCycle.toNumber();
+        proof = merkleTree.getHexProof(paymentNode, [ paymentCycle, paymentAmount ]);
         await paymentPool.submitPayeeMerkleRoot(root);
       });
 
       it("payee can get their available balance in the payment pool from their proof", async function() {
         let balance = await paymentPool.balanceForProof(proof, { from: payee });
-        console.log(JSON.stringify(balance, null, 2));
         assert.equal(balance.toNumber(), paymentAmount, "the balance is correct");
       });
 
@@ -116,35 +172,60 @@ contract('PaymentPool', function(accounts) {
       });
 
       it("an invalid proof/address pair returns a balance of 0 in the payment pool", async function() {
-        const paymentNode = paymentElements[4];
-        const differentUsersProof = merkleTree.getHexProof(paymentNode, [ currentPaymentCycle, paymentElements[4].amount ]);
+        let paymentNode = paymentElements[4];
+        let differentUsersProof = merkleTree.getHexProof(paymentNode, [ paymentCycle, paymentElements[4].amount ]);
         let balance = await paymentPool.balanceForProofWithAddress(payee, differentUsersProof);
         assert.equal(balance.toNumber(), 0, "the balance is correct");
       });
 
       it("garbage proof data returns a balance of 0 in payment pool", async function() {
-        const literalGarbage = "0x0123456789abcdef0123456789abdef0123456789abcdef0123456789abdef00";
+        let literalGarbage = "0x0123456789abcdef0123456789abdef0123456789abcdef0123456789abdef00";
         let balance = await paymentPool.balanceForProofWithAddress(payee, web3.toHex(literalGarbage));
         assert.equal(balance.toNumber(), 0, "the balance is correct");
       });
 
-      xit("can handle balance for proofs from different payment cycles", async function() {
+      it("can handle balance for proofs from different payment cycles", async function() {
+        let updatedPayments = [].concat(payments);
+        updatedPayments[payeeIndex].amount += 10;
+        let updatedPaymentElements = createPaymentLeafNodes(updatedPayments);
+        let updatedPaymentAmount = updatedPayments[payeeIndex].amount;
+        let updatedPaymentNode = updatedPaymentElements[payeeIndex];
+        let updatedMerkleTree = new MerkleTree(updatedPaymentElements);
+        let updatedRoot = updatedMerkleTree.getHexRoot();
+
+        // do something that causes a block to be mined
+        await token.mint(accounts[0], 1);
+
+        let paymentCycle = await paymentPool.numPaymentCycles();
+        paymentCycle = paymentCycle.toNumber();
+        let updatedProof = updatedMerkleTree.getHexProof(updatedPaymentNode, [ paymentCycle, updatedPaymentAmount ]);
+        await paymentPool.submitPayeeMerkleRoot(updatedRoot);
+
+        let balance = await paymentPool.balanceForProof(updatedProof, { from: payee });
+        assert.equal(balance.toNumber(), updatedPaymentAmount, "the balance is correct for the updated proof");
+
+        balance = await paymentPool.balanceForProof(proof, { from: payee });
+        assert.equal(balance.toNumber(), paymentAmount, "the balance is correct for the original proof");
       });
     });
 
     describe("withdraw", function() {
-      let currentPaymentCycle = 1;
-      const payeeIndex = 0;
-      const paymentPoolBalance = 100;
-      const payee = payments[payeeIndex].payee;
-      const paymentAmount = payments[payeeIndex].amount;
-      const paymentNode = paymentElements[payeeIndex];
-      const merkleTree = new MerkleTree(paymentElements);
-      const root = merkleTree.getHexRoot();
-      const proof = merkleTree.getHexProof(paymentNode, [currentPaymentCycle, paymentAmount]);
+      let paymentPoolBalance;
+      let paymentCycle;
+      let proof;
+      let payeeIndex = 0;
+      let payee = payments[payeeIndex].payee;
+      let paymentAmount = payments[payeeIndex].amount;
+      let paymentNode = paymentElements[payeeIndex];
+      let merkleTree = new MerkleTree(paymentElements);
+      let root = merkleTree.getHexRoot();
 
       beforeEach(async function() {
+        paymentPoolBalance = 100;
         await token.mint(paymentPool.address, paymentPoolBalance);
+        paymentCycle = await paymentPool.numPaymentCycles();
+        paymentCycle = paymentCycle.toNumber();
+        proof = merkleTree.getHexProof(paymentNode, [ paymentCycle, paymentAmount ]);
         await paymentPool.submitPayeeMerkleRoot(root);
       });
 
@@ -263,11 +344,11 @@ contract('PaymentPool', function(accounts) {
       });
 
       it("payee cannot withdraw their allotted tokens from the pool when the pool does not have enough tokens", async function() {
-        const insufficientFundsPayeeIndex = 7;
-        const insufficientFundsPayee = payments[insufficientFundsPayeeIndex].payee;
-        const insufficientFundsPaymentAmount = payments[insufficientFundsPayeeIndex].amount;
-        const insufficientFundsPaymentNode = paymentElements[insufficientFundsPayeeIndex];
-        const insufficientFundsProof = merkleTree.getHexProof(insufficientFundsPaymentNode, [ currentPaymentCycle, insufficientFundsPaymentAmount ]);
+        let insufficientFundsPayeeIndex = 7;
+        let insufficientFundsPayee = payments[insufficientFundsPayeeIndex].payee;
+        let insufficientFundsPaymentAmount = payments[insufficientFundsPayeeIndex].amount;
+        let insufficientFundsPaymentNode = paymentElements[insufficientFundsPayeeIndex];
+        let insufficientFundsProof = merkleTree.getHexProof(insufficientFundsPaymentNode, [ paymentCycle, insufficientFundsPaymentAmount ]);
 
         await assertRevert(async () => await paymentPool.withdraw(insufficientFundsPaymentAmount, insufficientFundsProof, { from: insufficientFundsPayee }));
 
@@ -282,23 +363,140 @@ contract('PaymentPool', function(accounts) {
         assert.equal(proofBalance.toNumber(), insufficientFundsPaymentAmount, 'the proof balance is correct');
       });
 
-      xit("payee withdraws their allotted amount from an older epoch", async function() {
+      it("payee withdraws their allotted amount from an older proof", async function() {
+        let updatedPayments = [].concat(payments);
+        updatedPayments[payeeIndex].amount += 2;
+        let updatedPaymentElements = createPaymentLeafNodes(updatedPayments);
+        let updatedPaymentAmount = updatedPayments[payeeIndex].amount;
+        let updatedPaymentNode = updatedPaymentElements[payeeIndex];
+        let updatedMerkleTree = new MerkleTree(updatedPaymentElements);
+        let updatedRoot = updatedMerkleTree.getHexRoot();
+
+        // do something that causes a block to be mined
+        await token.mint(accounts[0], 1);
+
+        let paymentCycle = await paymentPool.numPaymentCycles();
+        paymentCycle = paymentCycle.toNumber();
+        let updatedProof = updatedMerkleTree.getHexProof(updatedPaymentNode, [ paymentCycle, updatedPaymentAmount ]);
+        await paymentPool.submitPayeeMerkleRoot(updatedRoot);
+
+        let withdrawalAmount = 8;
+        await paymentPool.withdraw(withdrawalAmount, proof, { from: payee });
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+        let udpatedProofBalance = await paymentPool.balanceForProof(updatedProof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), withdrawalAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - withdrawalAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), withdrawalAmount, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount - withdrawalAmount, 'the proof balance is correct');
+        assert.equal(udpatedProofBalance.toNumber(), updatedPaymentAmount - withdrawalAmount, 'the updated proof balance is correct');
       });
 
-    });
+      it("payee withdraws their allotted amount from a newer proof", async function() {
+        let updatedPayments = [].concat(payments);
+        updatedPayments[payeeIndex].amount += 2;
+        let updatedPaymentElements = createPaymentLeafNodes(updatedPayments);
+        let updatedPaymentAmount = updatedPayments[payeeIndex].amount;
+        let updatedPaymentNode = updatedPaymentElements[payeeIndex];
+        let updatedMerkleTree = new MerkleTree(updatedPaymentElements);
+        let updatedRoot = updatedMerkleTree.getHexRoot();
 
+        // do something that causes a block to be mined
+        await token.mint(accounts[0], 1);
+
+        let paymentCycle = await paymentPool.numPaymentCycles();
+        paymentCycle = paymentCycle.toNumber();
+        let updatedProof = updatedMerkleTree.getHexProof(updatedPaymentNode, [ paymentCycle, updatedPaymentAmount ]);
+        await paymentPool.submitPayeeMerkleRoot(updatedRoot);
+
+        let withdrawalAmount = 8;
+        await paymentPool.withdraw(withdrawalAmount, updatedProof, { from: payee });
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+        let udpatedProofBalance = await paymentPool.balanceForProof(updatedProof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), withdrawalAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - withdrawalAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), withdrawalAmount, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount - withdrawalAmount, 'the proof balance is correct');
+        assert.equal(udpatedProofBalance.toNumber(), updatedPaymentAmount - withdrawalAmount, 'the updated proof balance is correct');
+      });
+
+      it("payee withdraws their allotted amount from both an older and new proof", async function() {
+        let updatedPayments = [].concat(payments);
+        updatedPayments[payeeIndex].amount += 2;
+        let updatedPaymentElements = createPaymentLeafNodes(updatedPayments);
+        let updatedPaymentAmount = updatedPayments[payeeIndex].amount;
+        let updatedPaymentNode = updatedPaymentElements[payeeIndex];
+        let updatedMerkleTree = new MerkleTree(updatedPaymentElements);
+        let updatedRoot = updatedMerkleTree.getHexRoot();
+
+        // do something that causes a block to be mined
+        await token.mint(accounts[0], 1);
+
+        let paymentCycle = await paymentPool.numPaymentCycles();
+        paymentCycle = paymentCycle.toNumber();
+        let updatedProof = updatedMerkleTree.getHexProof(updatedPaymentNode, [ paymentCycle, updatedPaymentAmount ]);
+        await paymentPool.submitPayeeMerkleRoot(updatedRoot);
+
+        let withdrawalAmount = 8 + 4;
+        await paymentPool.withdraw(8, proof, { from: payee });
+        await paymentPool.withdraw(4, updatedProof, { from: payee });
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+        let udpatedProofBalance = await paymentPool.balanceForProof(updatedProof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), withdrawalAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - withdrawalAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), withdrawalAmount, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), 0, 'the proof balance is correct');
+        assert.equal(udpatedProofBalance.toNumber(), updatedPaymentAmount - withdrawalAmount, 'the updated proof balance is correct');
+      });
+
+      it("does not allow a payee to exceed their provided proof's allotted amount when withdrawing from an older proof and a newer proof", async function() {
+        let updatedPayments = [].concat(payments);
+        updatedPayments[payeeIndex].amount += 2;
+        let updatedPaymentElements = createPaymentLeafNodes(updatedPayments);
+        let updatedPaymentAmount = updatedPayments[payeeIndex].amount;
+        let updatedPaymentNode = updatedPaymentElements[payeeIndex];
+        let updatedMerkleTree = new MerkleTree(updatedPaymentElements);
+        let updatedRoot = updatedMerkleTree.getHexRoot();
+
+        // do something that causes a block to be mined
+        await token.mint(accounts[0], 1);
+
+        let paymentCycle = await paymentPool.numPaymentCycles();
+        paymentCycle = paymentCycle.toNumber();
+        let updatedProof = updatedMerkleTree.getHexProof(updatedPaymentNode, [ paymentCycle, updatedPaymentAmount ]);
+        await paymentPool.submitPayeeMerkleRoot(updatedRoot);
+
+        let withdrawalAmount = 8;
+        await paymentPool.withdraw(8, updatedProof, { from: payee });
+        await assertRevert(async () => paymentPool.withdraw(4, proof, { from: payee })); // this proof only permits 10 - 8 tokens to be withdrawn, even though the newer proof permits 12 - 8 tokens to be withdrawn
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+        let udpatedProofBalance = await paymentPool.balanceForProof(updatedProof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), withdrawalAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - withdrawalAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), withdrawalAmount, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount - withdrawalAmount, 'the proof balance is correct');
+        assert.equal(udpatedProofBalance.toNumber(), updatedPaymentAmount - withdrawalAmount, 'the updated proof balance is correct');
+      });
+    });
   });
-
-  describe("popBytes32FromBytes", function() {
-    xit("rejects when bytes is only 32 bytes long", async function() {
-    });
-
-    xit("can handle up to 50 * 32 bytes long", async function() {
-    });
-
-    xit("rejects when bytes is not a multiple of 32 bytes long", async function() {
-    });
-  });
-
 });
 
