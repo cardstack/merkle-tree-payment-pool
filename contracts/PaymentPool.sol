@@ -13,7 +13,7 @@ contract PaymentPool is Ownable {
   using MerkleProof for bytes;
 
   struct AnalyticsSolution {
-    uint256 epochNumber;
+    uint256 paymentCycleNumber;
     address[] payees;
     uint256[] amounts;
     address miner;
@@ -23,27 +23,31 @@ contract PaymentPool is Ownable {
   uint256 constant MIN_GAS_BAIL_THRESHOLD = 50000;
 
   ERC20 public token;
-  uint256 public numEpochs;
+  uint256 public numPaymentCycles = 1;
   mapping(address => uint256) public miningStake;
   mapping(address => uint256) public withdrawals;
+  mapping(uint256 => bytes32) public payeeRoots;
 
-  uint256 currentEpochStartBlock;
-  bytes32 payeeRoot;
+  //TODO DELETE THIS
+  bytes32 payeeRoot; 
+
+  uint256 currentPaymentCycleStartBlock;
 
   event MiningStake(address indexed miner, uint256 amount);
-  event EpochEnded(uint256 epochNumber, uint256 startBlock, uint256 endBlock);
-  event PayeeMerkleRoot(bytes32 root /*, uint256 epochNumber*/);
+  event PaymentCycleEnded(uint256 paymentCycle, uint256 startBlock, uint256 endBlock);
+  event PayeeMerkleRoot(bytes32 root, uint256 paymentCycle);
   event PayeeWithdraw(address indexed payee, uint256 amount);
 
   event DebugString(string msg, string value);
   event DebugNumber(string msg, uint256 value);
   event DebugBytes1(string msg, bytes1 value);
   event DebugBytes32(string msg, bytes32 value);
+  event DebugBytes32Array(string msg, bytes32[] value);
   event DebugBytes(string msg, bytes value);
 
   function PaymentPool(ERC20 _token) public {
     token = _token;
-    currentEpochStartBlock = block.number;
+    currentPaymentCycleStartBlock = block.number;
   }
 
   // miner needs to first perform an ERC-20 approve of the mining pool so that we can perform a transferFrom of the token
@@ -59,41 +63,46 @@ contract PaymentPool is Ownable {
     return true;
   }
 
-  function startNewEpoch() public onlyOwner returns(bool) {
-    // TODO don't start new epoch if the n - 1 epoch is still unsolved
-    // at most there can be 1 unsolved epoch
-    require(block.number > currentEpochStartBlock);
+  // TODO move this to public for Tally. For general purpose PaymentPool, it doesn't make sense to
+  // decouple this from the submission of a merkle root
+  function startNewPaymentCycle() internal onlyOwner returns(bool) {
+    require(block.number > currentPaymentCycleStartBlock);
 
-    EpochEnded(numEpochs, currentEpochStartBlock, block.number);
+    PaymentCycleEnded(numPaymentCycles, currentPaymentCycleStartBlock, block.number);
 
-    numEpochs = numEpochs.add(1);
-    currentEpochStartBlock = block.number.add(1);
+    numPaymentCycles = numPaymentCycles.add(1);
+    currentPaymentCycleStartBlock = block.number.add(1);
 
     return true;
   }
 
   //TODO this will eventually be the responsibiliy of the miners
-  function submitPayeeMerkleRoot(bytes32 _payeeRoot) public onlyOwner returns(bool) {
-    payeeRoot = _payeeRoot;
+  function submitPayeeMerkleRoot(bytes32 payeeRoot) public onlyOwner returns(bool) {
+    payeeRoots[numPaymentCycles] = payeeRoot;
 
-    PayeeMerkleRoot(_payeeRoot);
+    PayeeMerkleRoot(payeeRoot, numPaymentCycles);
+
+    startNewPaymentCycle();
 
     return true;
   }
 
   function balanceForProofWithAddress(address _address, bytes proof) public view returns(uint256) {
-    bytes32 cumulativeAmountBytes;
+    bytes32[] memory meta;
     bytes memory _proof;
 
-    (cumulativeAmountBytes, _proof) = popBytes32FromBytes(proof);
+    (meta, _proof) = splitIntoBytes32(proof, 2);
+    if (meta.length != 2) { return 0; }
 
-    uint256 cumulativeAmount = uint256(cumulativeAmountBytes);
+    uint256 paymentCycleNumber = uint256(meta[0]);
+    uint256 cumulativeAmount = uint256(meta[1]);
+    if (payeeRoots[paymentCycleNumber] == 0x0) { return 0; }
 
     bytes32 leaf = keccak256('0x',
                              addressToString(_address),
                              ',',
                              uintToString(cumulativeAmount));
-    if (_proof.verifyProof(payeeRoot, leaf)) {
+    if (_proof.verifyProof(payeeRoots[paymentCycleNumber], leaf)) {
       return cumulativeAmount.sub(withdrawals[_address]);
     } else {
       return 0;
@@ -118,26 +127,36 @@ contract PaymentPool is Ownable {
   }
 
   //TODO move to lib
-  function popBytes32FromBytes(bytes byteArray) internal pure returns (bytes32 firstElement, bytes memory trimmedArray) {
-    require(byteArray.length % 32 == 0 &&
-            byteArray.length > 32 &&
-            byteArray.length % 32 <= 50); // Arbitrarily limiting this function to an array of 50 bytes32's to conserve gas
+  function splitIntoBytes32(bytes byteArray, uint256 numBytes32) internal pure returns (bytes32[] memory bytes32Array,
+                                                                                        bytes memory remainder) {
+    if ( byteArray.length % 32 != 0 ||
+         byteArray.length < numBytes32.mul(32) ||
+         byteArray.length.div(32) > 50) { // Arbitrarily limiting this function to an array of 50 bytes32's to conserve gas
 
-    assembly {
-      firstElement := mload(add(byteArray, 32))
+      bytes32Array = new bytes32[](0);
+      remainder = new bytes(0);
+      return;
     }
 
-    uint256 newArraySize = byteArray.length.div(32).sub(1).mul(32);
-    trimmedArray = new bytes(newArraySize);
+    bytes32Array = new bytes32[](numBytes32);
+    bytes32 _bytes32;
+    for (uint256 k = 32; k <= numBytes32 * 32; k = k.add(32)) {
+      assembly {
+        _bytes32 := mload(add(byteArray, k))
+      }
+      bytes32Array[k.sub(32).div(32)] = _bytes32;
+    }
+
+    uint256 newArraySize = byteArray.length.div(32).sub(numBytes32).mul(32);
+    remainder = new bytes(newArraySize);
 
     bytes1 _bytes1;
-    uint256 j = 0;
-    for (uint256 i = 64; i < newArraySize.add(64); i = i.add(1)) {
+    uint256 offset = numBytes32.sub(1).mul(32).add(64);
+    for (uint256 i = offset; i < newArraySize.add(offset); i = i.add(1)) {
       assembly {
         _bytes1 := mload(add(byteArray, i))
       }
-      trimmedArray[j] = _bytes1;
-      j = j.add(1);
+      remainder[i.sub(offset)] = _bytes1;
     }
   }
 
