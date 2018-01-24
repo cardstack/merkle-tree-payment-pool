@@ -36,7 +36,7 @@ contract('PaymentPool', function(accounts) {
     amount: 9
   },{
     payee: accounts[9],
-    amount: 9
+    amount: 101 // this amount is used to test logic when the payment pool doesn't have sufficient funds
   }];
   let paymentElements = createPaymentLeafNodes(payments);
 
@@ -57,14 +57,37 @@ contract('PaymentPool', function(accounts) {
     xit("owner can submit merkle root", async function() {
     });
 
-    describe("balanceOf", function() {
-      xit("payee can get their available balance in the payment pool from their proof", async function() {
+    describe("balanceForProof", function() {
+      const payeeIndex = 0;
+      const paymentPoolBalance = 100;
+      const payee = payments[payeeIndex].payee;
+      const paymentAmount = payments[payeeIndex].amount;
+      const paymentNode = paymentElements[payeeIndex];
+      const merkleTree = new MerkleTree(paymentElements);
+      const root = merkleTree.getHexRoot();
+      const proof = merkleTree.getHexProof(paymentNode, { unshift: paymentAmount });
+
+      beforeEach(async function() {
+        await token.mint(paymentPool.address, paymentPoolBalance);
+        await paymentPool.startNewEpoch();
+        await paymentPool.submitPayeeMerkleRoot(root);
       });
 
-      xit("non-payee can get the available balance in the payment pool for an address and proof", async function() {
+      it("payee can get their available balance in the payment pool from their proof", async function() {
+        let balance = await paymentPool.balanceForProof(proof, { from: payee });
+        assert.equal(balance.toNumber(), paymentAmount, "the balance is correct");
       });
 
-      xit("an invalid proof/address pair returns a balance of 0 in the payment pool", async function() {
+      it("non-payee can get the available balance in the payment pool for an address and proof", async function() {
+        let balance = await paymentPool.balanceForProofWithAddress(payee, proof);
+        assert.equal(balance.toNumber(), paymentAmount, "the balance is correct");
+      });
+
+      it("an invalid proof/address pair returns a balance of 0 in the payment pool", async function() {
+        const paymentNode = paymentElements[4];
+        const differentUsersProof = merkleTree.getHexProof(paymentNode, { unshift: paymentElements[4].amount });
+        let balance = await paymentPool.balanceForProofWithAddress(payee, differentUsersProof);
+        assert.equal(balance.toNumber(), 0, "the balance is correct");
       });
     });
 
@@ -86,7 +109,6 @@ contract('PaymentPool', function(accounts) {
 
       it("payee can withdraw up to their allotted amount from pool", async function() {
         let txn = await paymentPool.withdraw(paymentAmount, proof, { from: payee });
-        // console.log(JSON.stringify(txn, null, 2));
 
         let withdrawEvent = txn.logs.find(log => log.event === 'PayeeWithdraw');
         assert.equal(withdrawEvent.args.payee, payee, 'event payee is correct');
@@ -95,26 +117,128 @@ contract('PaymentPool', function(accounts) {
         let payeeBalance = await token.balanceOf(payee);
         let poolBalance = await token.balanceOf(paymentPool.address);
         let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
 
         assert.equal(payeeBalance.toNumber(), paymentAmount, 'the payee balance is correct');
         assert.equal(poolBalance.toNumber(), paymentPoolBalance - paymentAmount, 'the pool balance is correct');
         assert.equal(withdrawals.toNumber(), paymentAmount, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), 0, 'the proof balance is correct');
       });
 
+      it("payee can make a withdrawal less than their allotted amount from the pool", async function() {
+        let withdrawalAmount = 8;
+        let txn = await paymentPool.withdraw(withdrawalAmount, proof, { from: payee });
 
-      xit("payee can make a withdrawal less than their allotted amount from the pool", async function() {
+        let withdrawEvent = txn.logs.find(log => log.event === 'PayeeWithdraw');
+        assert.equal(withdrawEvent.args.payee, payee, 'event payee is correct');
+        assert.equal(withdrawEvent.args.amount.toNumber(), withdrawalAmount, 'event amount is correct');
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), withdrawalAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - withdrawalAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), withdrawalAmount, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount - withdrawalAmount, 'the proof balance is correct');
       });
 
-      xit("payee can make mulitple withdrawls within their allotted amount from the pool", async function() {
+      it("payee can make mulitple withdrawls within their allotted amount from the pool", async function() {
+        let withdrawalAmount = 4 + 6;
+        await paymentPool.withdraw(4, proof, { from: payee });
+        await paymentPool.withdraw(6, proof, { from: payee });
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), withdrawalAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - withdrawalAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), withdrawalAmount, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount - withdrawalAmount, 'the proof balance is correct');
       });
 
-      xit("payee cannot withdraw more than their allotted amount from the pool", async function() {
+      it("payee cannot withdraw more than their allotted amount from the pool", async function() {
+        let withdrawalAmount = 11;
+        await assertRevert(async () => await paymentPool.withdraw(withdrawalAmount, proof, { from: payee }));
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), 0, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), 0, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount, 'the proof balance is correct');
       });
 
-      xit("payee cannot make mulitple withdrawls that total to more than their allotted amount from the pool", async function() {
+      it("payee cannot make mulitple withdrawls that total to more than their allotted amount from the pool", async function() {
+        let withdrawalAmount = 4;
+        await paymentPool.withdraw(4, proof, { from: payee });
+        await assertRevert(async () => await paymentPool.withdraw(7, proof, { from: payee }));
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), withdrawalAmount, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance - withdrawalAmount, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), withdrawalAmount, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount - withdrawalAmount, 'the proof balance is correct');
       });
 
-      xit("non-payee cannot withdraw from pool", async function() {
+      it("payee cannot withdraw 0 tokens from payment pool", async function() {
+        let withdrawalAmount = 0;
+        await assertRevert(async () => await paymentPool.withdraw(withdrawalAmount, proof, { from: payee }));
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), 0, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), 0, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount, 'the proof balance is correct');
+      });
+
+      it("non-payee cannot withdraw from pool", async function() {
+        let withdrawalAmount = 10;
+        await assertRevert(async () => await paymentPool.withdraw(withdrawalAmount, proof, { from: accounts[0] }));
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), 0, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), 0, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount, 'the proof balance is correct');
+      });
+
+      it("payee cannot withdraw their allotted tokens from the pool when the pool does not have enough tokens", async function() {
+        const insufficientFundsPayeeIndex = 7;
+        const insufficientFundsPayee = payments[insufficientFundsPayeeIndex].payee;
+        const insufficientFundsPaymentAmount = payments[insufficientFundsPayeeIndex].amount;
+        const insufficientFundsPaymentNode = paymentElements[insufficientFundsPayeeIndex];
+        const insufficientFundsProof = merkleTree.getHexProof(insufficientFundsPaymentNode, { unshift: insufficientFundsPaymentAmount });
+
+        await assertRevert(async () => await paymentPool.withdraw(insufficientFundsPaymentAmount, insufficientFundsProof, { from: insufficientFundsPayee }));
+
+        let payeeBalance = await token.balanceOf(insufficientFundsPayee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(insufficientFundsPayee);
+        let proofBalance = await paymentPool.balanceForProof(insufficientFundsProof, { from: insufficientFundsPayee });
+
+        assert.equal(payeeBalance.toNumber(), 0, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), 0, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), insufficientFundsPaymentAmount, 'the proof balance is correct');
       });
 
       xit("payee withdraws their allotted amount from an older epoch", async function() {

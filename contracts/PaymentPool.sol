@@ -81,7 +81,7 @@ contract PaymentPool is Ownable {
     return true;
   }
 
-  function balanceOf(address _address, bytes proof) public view returns(uint256) {
+  function balanceForProofWithAddress(address _address, bytes proof) public view returns(uint256) {
     bytes32 cumulativeAmountBytes;
     bytes memory _proof;
 
@@ -100,14 +100,15 @@ contract PaymentPool is Ownable {
     }
   }
 
-  function balanceOf(bytes proof) public view returns(uint256) {
-    return balanceOf(msg.sender, proof);
+  function balanceForProof(bytes proof) public view returns(uint256) {
+    return balanceForProofWithAddress(msg.sender, proof);
   }
 
   function withdraw(uint256 amount, bytes proof) public returns(bool) {
     require(amount > 0);
+    require(token.balanceOf(this) >= amount);
 
-    uint256 balance = balanceOf(proof);
+    uint256 balance = balanceForProof(proof);
     require(balance >= amount);
 
     withdrawals[msg.sender] = withdrawals[msg.sender].add(amount);
