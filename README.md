@@ -59,7 +59,9 @@ let root = paymentTree.getHexRoot();
 await paymentPool.submitPayeeMerkleRoot(root);
 ```
 
-Retreive the Merkle proof for each payee in the payment list while providing the payment cycle number of the payment cycle that just ended. Then publish the Merkle proof off-chain for each payee in a place that is easily accessible, like IPFS. For extra credit, perhaps add a link to a dApp that can display the available balance for each payee's proof. It is probably a good idea to organize the published proofs by payment cycle number for each payee, as the payee will generally want to use the latest proof (to retrieve the most money). But an older proof can be used too for retrieving money, provided all the tokens haven't already been withdrawn using an older proof.
+Retreive the Merkle proof for each payee in the payment list while providing the payment cycle number of the payment cycle that just ended. Then publish the Merkle proof off-chain for each payee in a place that is easily accessible, like IPFS.
+
+It is probably a good idea to organize the published proofs by payment cycle number for each payee, as the payee will generally want to use the latest proof (to retrieve the most money). But an older proof can be used too for retrieving money, provided all the tokens haven't already been withdrawn using an older proof. For extra credit, perhaps add a link to a dApp that can display the available balance for each payee's proof. 
 
 ```js
 // `paymentCycleNumber` is set to the paymentCycle that ended when the root was submitted
