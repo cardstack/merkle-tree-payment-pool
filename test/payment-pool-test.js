@@ -43,6 +43,10 @@ contract('PaymentPool', function(accounts) {
       initialBlockNumber = await web3.eth.blockNumber;
     });
 
+    afterEach(async function() {
+      payments[0].amount = 10; // one of the tests is bleeding state...
+    });
+
     describe("submitPayeeMerkleRoot", function() {
       it("starts a new payment cycle after the payee merkle root is submitted", async function() {
         let merkleTree = new CumulativePaymentTree(payments);
@@ -147,10 +151,6 @@ contract('PaymentPool', function(accounts) {
         paymentCycle = paymentCycle.toNumber();
         proof = merkleTree.hexProofForPayee(payee, paymentCycle);
         await paymentPool.submitPayeeMerkleRoot(root);
-      });
-
-      afterEach(async function() {
-        payments[payeeIndex].amount = 10; // one of the tests is bleeding state...
       });
 
       it("payee can get their available balance in the payment pool from their proof", async function() {
@@ -258,9 +258,6 @@ contract('PaymentPool', function(accounts) {
         paymentCycle = paymentCycle.toNumber();
         proof = merkleTree.hexProofForPayee(payee, paymentCycle);
         await paymentPool.submitPayeeMerkleRoot(root);
-      });
-      afterEach(async function() {
-        payments[payeeIndex].amount = 10; // one of the tests is bleeding state...
       });
 
       it("payee can withdraw up to their allotted amount from pool", async function() {
