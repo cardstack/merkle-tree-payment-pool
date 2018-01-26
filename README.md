@@ -17,15 +17,15 @@ The way this payment pool works is that for each *payment cycle* the contract ow
 
 Link and deploy the `PaymentPool` contract specying whatever ERC-20 token will be governed by the payment pool. From the tests this looks like the following (a truffle migration script would follow a similar approach):
 ```js
-  const PaymentPool = artifacts.require('./PaymentPool.sol');
-  const MerkleProofLib = artifacts.require('MerkleProof.sol'); // From open zeppelin
-  const Token = artifacts.require('./Token.sol'); // This is just a sample ERC-20 token
+const PaymentPool = artifacts.require('./PaymentPool.sol');
+const MerkleProofLib = artifacts.require('MerkleProof.sol'); // From open zeppelin
+const Token = artifacts.require('./Token.sol'); // This is just a sample ERC-20 token
  
-   let merkleProofLib = await MerkleProofLib.new();
-   let token = await Token.new();
-   let PaymentPool.link('MerkleProof', merkleProofLib.address);
+let merkleProofLib = await MerkleProofLib.new();
+let token = await Token.new();
+PaymentPool.link('MerkleProof', merkleProofLib.address);
    
-   await PaymentPool.new(token.address);
+await PaymentPool.new(token.address);
 ```
 
 Assemble the list of payees and their cumulative payment amounts. The payment amounts need to be cumulative across all the payment cycles in order for the payment pool to calculate the current amount available to a payee for their provided proof. The cumulative amounts should never decrease in subsequent payment cycles. The amounts represent the amounts in the ERC-20 token that is specified when the `PaymentPool` contract is deployed.
