@@ -43,21 +43,25 @@ let paymentList = [{
 }];
 ```
 
+
 Instantiate an instance of the `CumulativePaymentTree` class with the payee list to build the Merkle tree:
 ```js
 let paymentTree = new CumulativePaymentTree(paymentList);
 ```
+
 
 Note the current payment cycle number by querying the `PaymentPool` contract:
 ```js
 let paymentCycleNumber = await paymentPool.numPaymentCycles();
 ```
 
+
 Retreive the root of the payment list's Merkle tree and submit to the `PaymentPool` contract. Note that submitting the Merkle root triggers the end of the current payment cycle, and a new cycle is started:
 ```js
 let root = paymentTree.getHexRoot();
 await paymentPool.submitPayeeMerkleRoot(root);
 ```
+
 
 Retreive the Merkle proof for each payee in the payment list while providing the payment cycle number of the payment cycle that just ended. Then publish the Merkle proof off-chain for each payee in a place that is easily accessible, like IPFS.
 
@@ -71,14 +75,17 @@ paymentList.forEach(({ payee }) => {
 });
 ```
 
+
 A payee can view the balance the is available to be withdrawn from the payment pool using their proof by calling the `PaymentPool` contract:
 ```js
 let balance = await paymentPool.balanceForProofWithAddress(payeeAddress, proof);
 ```
 
+
 A payee can then withdraw tokens from the payment pool using their proof by calling the `PaymentPool` contract. A payee is allowed to withdraw any amount up to the amount allowed by the proof. The payees' withdrawals are tracked by the payment pool, such that a payee cannot withdraw more tokens than they allotted from the payment pool:
 ```js
 await paymentPool.withdraw(15, proof); // withdraw 15 tokens from the payment pool
 ```
+
 
 Feel free to checkout the tests for more examples.
