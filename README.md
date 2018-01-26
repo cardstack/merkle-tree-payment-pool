@@ -4,6 +4,14 @@ This is an implementation of a Merkle Tree based payment pool in Solidity for ER
 
 The key feature behind this payment pool, is that by using a Merkle tree to represent the list of payees and their payment amounts, we can specify arbitrarily large amounts of payees and their payment amounts simply by specifying a 32 byte Merkle root of a Merkle tree that represents the payee list. Payees can then withdraw their payments by providing the payment pool with the Merkle proof associated with the payee. This solution does rely on an off-chain mechanism to derive the Merkle tree for each payment cycle, as well as to publish the Merkle proofs for the payees in manner that payees can easily discover their proofs (e.g. IPFS).
 
+## Prerequisites
+* Node 7.6 or greater
+* Yarn
+
+## Setting up
+1. run `yarn install` within the project
+2. run `npm test` to run the tests
+
 ## How It Works
 The way this payment pool works is that for each *payment cycle* the contract owner derives a Merkle tree for a list of payees that recieve payment during the payment cycle. Each payment cycle is numbered, with the first payment cycle start at `1` when the contract is deployed. To look up the current payment cycle use the contract function `paymentPool.numPaymentCycles()`. This project includes a javascript abstraction for a payee-list based Merkle tree, `CumulativePaymentTree`, that you can use to manage the Merkle tree for the list of payees for each payment cycle. 
 
@@ -70,3 +78,5 @@ A payee can then withdraw tokens from the payment pool using their proof by call
 ```js
 await paymentPool.withdraw(15, proof); // withdraw 15 tokens from the payment pool
 ```
+
+Feel free to checkout the tests for more examples.
