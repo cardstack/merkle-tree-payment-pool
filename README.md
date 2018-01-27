@@ -84,7 +84,7 @@ let balance = await paymentPool.balanceForProofWithAddress(payeeAddress, proof);
 ```
 
 
-A payee can then withdraw tokens from the payment pool using their proof by calling the `PaymentPool` contract. A payee is allowed to withdraw any amount up to the amount allowed by the proof. The payees' withdrawals are tracked by the payment pool, such that a payee cannot withdraw more tokens than they allotted from the payment pool:
+A payee can then withdraw tokens from the payment pool using their proof by calling the `PaymentPool` contract. A payee is allowed to withdraw any amount up to the amount allowed by the proof. The payees' withdrawals are tracked by the payment pool, such that a payee cannot withdraw more tokens than they are allotted from the payment pool:
 ```js
 await paymentPool.withdraw(15, proof); // withdraw 15 tokens from the payment pool
 ```
