@@ -15,12 +15,11 @@ contract PaymentPool is Ownable {
   ERC20 public token;
   uint256 public numPaymentCycles = 1;
   mapping(address => uint256) public withdrawals;
-  mapping(uint256 => bytes32) public payeeRoots;
 
+  mapping(uint256 => bytes32) payeeRoots;
   uint256 currentPaymentCycleStartBlock;
 
   event PaymentCycleEnded(uint256 paymentCycle, uint256 startBlock, uint256 endBlock);
-  event PayeeMerkleRoot(bytes32 root, uint256 paymentCycle);
   event PayeeWithdraw(address indexed payee, uint256 amount);
 
   function PaymentPool(ERC20 _token) public {
@@ -41,8 +40,6 @@ contract PaymentPool is Ownable {
 
   function submitPayeeMerkleRoot(bytes32 payeeRoot) public onlyOwner returns(bool) {
     payeeRoots[numPaymentCycles] = payeeRoot;
-
-    PayeeMerkleRoot(payeeRoot, numPaymentCycles);
 
     startNewPaymentCycle();
 

@@ -56,19 +56,12 @@ contract('PaymentPool', function(accounts) {
 
         let txn = await paymentPool.submitPayeeMerkleRoot(root);
         let currentBlockNumber = await web3.eth.blockNumber;
-        let actualRoot = await paymentPool.payeeRoots(1);
         paymentCycleNumber = await paymentPool.numPaymentCycles();
 
         assert.equal(paymentCycleNumber.toNumber(), 2, "the payment cycle number is correct");
-        assert.equal(txn.logs.length, 2, "the correct number of events were fired");
-        assert.equal(actualRoot, root, "the payee merkle root is correct");
+        assert.equal(txn.logs.length, 1, "the correct number of events were fired");
 
         let event = txn.logs[0];
-        assert.equal(event.event, "PayeeMerkleRoot", "the event type is correct");
-        assert.equal(event.args.root, root, "the root arg is correct");
-        assert.equal(event.args.paymentCycle, 1, "the payment cycle number is correct");
-
-        event = txn.logs[1];
         assert.equal(event.event, "PaymentCycleEnded", "the event type is correct");
         assert.equal(event.args.paymentCycle, 1, "the payment cycle number is correct");
         assert.equal(event.args.startBlock, initialBlockNumber, "the payment cycle start block is correct");
@@ -90,13 +83,8 @@ contract('PaymentPool', function(accounts) {
 
         await paymentPool.submitPayeeMerkleRoot(updatedRoot);
 
-        let actualOriginalRoot = await paymentPool.payeeRoots(1);
-        let actualUpdatedRoot = await paymentPool.payeeRoots(2);
         let paymentCycleNumber = await paymentPool.numPaymentCycles();
 
-        assert.equal(actualOriginalRoot, root, "the root is correct");
-        assert.equal(actualUpdatedRoot, updatedRoot, "the root is correct");
-        assert.notEqual(actualUpdatedRoot, actualOriginalRoot, "the roots are different");
         assert.equal(paymentCycleNumber.toNumber(), 3, "the payment cycle number is correct");
       });
 
@@ -112,12 +100,8 @@ contract('PaymentPool', function(accounts) {
 
         await assertRevert(async () => await paymentPool.submitPayeeMerkleRoot(updatedRoot));
 
-        let actualOriginalRoot = await paymentPool.payeeRoots(1);
-        let actualUpdatedRoot = await paymentPool.payeeRoots(2);
         let paymentCycleNumber = await paymentPool.numPaymentCycles();
 
-        assert.equal(actualOriginalRoot, root, "the original root is correct");
-        assert.equal(actualUpdatedRoot, "0x0000000000000000000000000000000000000000000000000000000000000000", "the updated root is correct");
         assert.equal(paymentCycleNumber.toNumber(), 2, "the payment cycle number is correct");
       });
 
@@ -127,10 +111,8 @@ contract('PaymentPool', function(accounts) {
 
         await assertRevert(async () => paymentPool.submitPayeeMerkleRoot(root, { from: accounts[2] }));
         let paymentCycleNumber = await paymentPool.numPaymentCycles();
-        let actualRoot = await paymentPool.payeeRoots(1);
 
         assert.equal(paymentCycleNumber.toNumber(), 1, "the payment cycle number is correct");
-        assert.equal(actualRoot, "0x0000000000000000000000000000000000000000000000000000000000000000", "the payee merkle root is correct");
       });
     });
 
