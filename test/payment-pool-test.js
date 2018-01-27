@@ -160,8 +160,8 @@ contract('PaymentPool', function(accounts) {
 
       it("can handle balance for proofs from different payment cycles", async function() {
         let updatedPayments = payments.slice();
-        updatedPayments[payeeIndex].amount = 20;
         let updatedPaymentAmount = 20;
+        updatedPayments[payeeIndex].amount = updatedPaymentAmount;
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
