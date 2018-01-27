@@ -310,6 +310,26 @@ contract('PaymentPool', function(accounts) {
         assert.equal(proofBalance.toNumber(), paymentAmount, 'the proof balance is correct');
       });
 
+      it("payee cannot withdraw using a proof whose metadata has been tampered with", async function() {
+        let withdrawalAmount = 11;
+        // the cumulative amount in in the proof's meta has been increased artifically to 12 tokens
+        let tamperedProof = "0x0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000c2e46ed0464b1e11097030a04086c9f068606b4c9808ccdac0343863c5e4f8244749e106fa8d91408f2578e5d93447f727f59279be85ce491faf212a7201d3b836b94214bff74426647e9cf0b5c5c3cbc9cef25b7e08759ca2b85357ec22c9b40";
+
+        await assertRevert(async () => await paymentPool.withdraw(withdrawalAmount, tamperedProof, { from: payee }));
+
+        let payeeBalance = await token.balanceOf(payee);
+        let poolBalance = await token.balanceOf(paymentPool.address);
+        let withdrawals = await paymentPool.withdrawals(payee);
+        let proofBalance = await paymentPool.balanceForProof(proof, { from: payee });
+        let tamperedProofBalance = await paymentPool.balanceForProof(tamperedProof, { from: payee });
+
+        assert.equal(payeeBalance.toNumber(), 0, 'the payee balance is correct');
+        assert.equal(poolBalance.toNumber(), paymentPoolBalance, 'the pool balance is correct');
+        assert.equal(withdrawals.toNumber(), 0, 'the withdrawals amount is correct');
+        assert.equal(proofBalance.toNumber(), paymentAmount, 'the proof balance is correct');
+        assert.equal(tamperedProofBalance.toNumber(), 0, 'the tampered proof balance is 0 tokens');
+      });
+
       it("payee cannot make mulitple withdrawls that total to more than their allotted amount from the pool", async function() {
         let withdrawalAmount = 4;
         await paymentPool.withdraw(4, proof, { from: payee });
