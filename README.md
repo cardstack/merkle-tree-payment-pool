@@ -46,6 +46,8 @@ let paymentList = [{
 
 Instantiate an instance of the `CumulativePaymentTree` class with the payee list to build the Merkle tree:
 ```js
+import CumulativePaymentTree from '../lib/cumulative-payment-tree.js';
+
 let paymentTree = new CumulativePaymentTree(paymentList);
 ```
 
