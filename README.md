@@ -1,4 +1,4 @@
-# Merkle-Tree Payment Pool
+# Merkle-Tree Payment Pool [![Build Status](https://travis-ci.org/cardstack/merkle-tree-payment-pool.svg?branch=master)](https://travis-ci.org/cardstack/merkle-tree-payment-pool)
 
 This is an implementation of a Merkle Tree based payment pool in Solidity for ERC-20 tokens. This project was inspired by this Ethereum research post: https://ethresear.ch/t/pooled-payments-scaling-solution-for-one-to-many-transactions/590. A longer description around the motivations behind this project is available here: https://medium.com/cardstack/scalable-payment-pools-in-solidity-d97e45fc7c5c. This project includes a payment pool smart contract that leverages Merkle Trees. Also included is a JS lib to create Merkle Trees, derive Merkle roots, and Merkle proofs that have metadata attached to the proofs that aid this smart contract in managing the payment pool. 
 
