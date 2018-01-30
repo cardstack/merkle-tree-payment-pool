@@ -17,5 +17,5 @@ install:
   - yarn install
 
 script:
-  - ./node_modules/.bin/truffle develop && npm test
+  - ./node_modules/.bin/truffle develop && ./node_modules/.bin/truffle test
 
