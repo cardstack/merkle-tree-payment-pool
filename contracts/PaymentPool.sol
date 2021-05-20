@@ -22,7 +22,7 @@ contract PaymentPool is Ownable {
   event PaymentCycleEnded(uint256 paymentCycle, uint256 startBlock, uint256 endBlock);
   event PayeeWithdraw(address indexed payee, uint256 amount);
 
-  function PaymentPool(ERC20 _token) public {
+  constructor (ERC20 _token) {
     token = _token;
     currentPaymentCycleStartBlock = block.number;
   }
@@ -30,7 +30,7 @@ contract PaymentPool is Ownable {
   function startNewPaymentCycle() internal onlyOwner returns(bool) {
     require(block.number > currentPaymentCycleStartBlock);
 
-    PaymentCycleEnded(numPaymentCycles, currentPaymentCycleStartBlock, block.number);
+    emit PaymentCycleEnded(numPaymentCycles, currentPaymentCycleStartBlock, block.number);
 
     numPaymentCycles = numPaymentCycles.add(1);
     currentPaymentCycleStartBlock = block.number.add(1);
@@ -46,7 +46,7 @@ contract PaymentPool is Ownable {
     return true;
   }
 
-  function balanceForProofWithAddress(address _address, bytes proof) public view returns(uint256) {
+  function balanceForProofWithAddress(address _address, bytes memory proof) public view returns(uint256) {
     bytes32[] memory meta;
     bytes memory _proof;
 
@@ -69,13 +69,14 @@ contract PaymentPool is Ownable {
     }
   }
 
-  function balanceForProof(bytes proof) public view returns(uint256) {
+
+  function balanceForProof(bytes memory proof) public view returns(uint256) {
     return balanceForProofWithAddress(msg.sender, proof);
   }
 
-  function withdraw(uint256 amount, bytes proof) public returns(bool) {
+  function withdraw(uint256 amount, bytes memory proof) public returns(bool) {
     require(amount > 0);
-    require(token.balanceOf(this) >= amount);
+    require(token.balanceOf(address(this)) >= amount);
 
     uint256 balance = balanceForProof(proof);
     require(balance >= amount);
@@ -83,11 +84,11 @@ contract PaymentPool is Ownable {
     withdrawals[msg.sender] = withdrawals[msg.sender].add(amount);
     token.safeTransfer(msg.sender, amount);
 
-    PayeeWithdraw(msg.sender, amount);
+    emit PayeeWithdraw(msg.sender, amount);
   }
 
   //TODO move to lib
-  function splitIntoBytes32(bytes byteArray, uint256 numBytes32) internal pure returns (bytes32[] memory bytes32Array,
+  function splitIntoBytes32(bytes memory byteArray, uint256 numBytes32) internal pure returns (bytes32[] memory bytes32Array,
                                                                                         bytes memory remainder) {
     if ( byteArray.length % 32 != 0 ||
          byteArray.length < numBytes32.mul(32) ||
@@ -95,7 +96,6 @@ contract PaymentPool is Ownable {
 
       bytes32Array = new bytes32[](0);
       remainder = new bytes(0);
-      return;
     }
 
     bytes32Array = new bytes32[](numBytes32);
@@ -121,7 +121,7 @@ contract PaymentPool is Ownable {
   }
 
   //TODO use SafeMath and move to lib
-  function addressToString(address x) internal pure returns (string) {
+  function addressToString(address x) internal pure returns (string memory) {
     bytes memory s = new bytes(40);
     for (uint256 i = 0; i < 20; i++) {
       byte b = byte(uint8(uint256(x) / (2**(8*(19 - i)))));
@@ -140,7 +140,7 @@ contract PaymentPool is Ownable {
   }
 
   //TODO use SafeMath and move to lib
-  function uintToString(uint256 v) internal pure returns (string) {
+  function uintToString(uint256 v) internal pure returns (string memory) {
     uint256 maxlength = 80; // 2^256 = 1.157920892E77
     bytes memory reversed = new bytes(maxlength);
     uint256 i = 0;
