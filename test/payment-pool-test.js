@@ -156,8 +156,8 @@ contract('PaymentPool', function(accounts) {
       });
 
       it("garbage proof data returns a balance of 0 in payment pool", async function() {
-        let literalGarbage = "0x0123456789abcdef0123456789abdef0123456789abcdef0123456789abdef00";
-        let balance = await paymentPool.balanceForProofWithAddress(payee, web3.toHex(literalGarbage));
+        const randomProof = web3.utils.randomHex(32*5)
+        let balance = await paymentPool.balanceForProofWithAddress(payee, randomProof);
         assert.equal(balance.toNumber(), 0, "the balance is correct");
       });
 
