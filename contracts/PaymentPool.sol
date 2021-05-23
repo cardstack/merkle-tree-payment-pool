@@ -59,10 +59,8 @@ contract PaymentPool is Ownable {
 
     bytes32 leaf = keccak256(
                              abi.encodePacked(
-                                              '0x',
-                                              addressToString(_address),
-                                              ',',
-                                              uintToString(cumulativeAmount)
+                                              _address,
+                                              cumulativeAmount
                                               )
                              );
     if (withdrawals[_address] < cumulativeAmount &&
@@ -116,39 +114,4 @@ contract PaymentPool is Ownable {
     }
   }
 
-  //TODO use SafeMath and move to lib
-  function addressToString(address x) internal pure returns (string memory) {
-    bytes memory s = new bytes(40);
-    for (uint256 i = 0; i < 20; i++) {
-      byte b = byte(uint8(uint256(x) / (2**(8*(19 - i)))));
-      byte hi = byte(uint8(b) / 16);
-      byte lo = byte(uint8(b) - 16 * uint8(hi));
-      s[2*i] = char(hi);
-      s[2*i+1] = char(lo);
-    }
-    return string(s);
-  }
-
-  //TODO use SafeMath and move to lib
-  function char(byte b) internal pure returns (byte c) {
-    if (b < 10) return byte(uint8(b) + 0x30);
-    else return byte(uint8(b) + 0x57);
-  }
-
-  //TODO use SafeMath and move to lib
-  function uintToString(uint256 v) internal pure returns (string memory) {
-    uint256 maxlength = 80; // 2^256 = 1.157920892E77
-    bytes memory reversed = new bytes(maxlength);
-    uint256 i = 0;
-    while (v != 0) {
-      uint256 remainder = v % 10;
-      v = v / 10;
-      reversed[i++] = byte(48 + remainder);
-    }
-    bytes memory s = new bytes(i);
-    for (uint256 j = 0; j < i; j++) {
-      s[j] = reversed[i - 1 - j];
-    }
-    return string(s);
-  }
 }

@@ -1,5 +1,7 @@
 import CumulativePaymentTree from '../lib/cumulative-payment-tree.js';
 import { assertRevert } from './helpers/utils';
+import {toChecksumAddress,toHex, soliditySha3} from "web3-utils"
+import BN from "bn.js"
 
 const PaymentPool = artifacts.require('./PaymentPool.sol');
 const Token = artifacts.require('./Token.sol');
