@@ -16,3 +16,19 @@ export const assertRevert = async function (block, msg) {
                        "revert should have been fired, instead:" + err.message);
   }
 };
+
+
+export const advanceBlock = (web3) => { //passes local ganache web3
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.send({
+      jsonrpc: '2.0',
+      method: 'evm_mine',
+      id: new Date().getTime()
+    }, (err, result) => {
+      if (err) { return reject(err) }
+      const newBlockHash = web3.eth.getBlock('latest').hash
+
+      return resolve(newBlockHash)
+    })
+ })
+}

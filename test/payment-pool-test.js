@@ -1,5 +1,5 @@
 import CumulativePaymentTree from '../lib/cumulative-payment-tree.js';
-import { assertRevert } from './helpers/utils';
+import { assertRevert, advanceBlock } from './helpers/utils';
 import {toHex, soliditySha3} from "web3-utils"
 import BN from "bn.js"
 
@@ -81,8 +81,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         await paymentPool.submitPayeeMerkleRoot(updatedRoot);
 
@@ -168,8 +167,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -190,8 +188,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -211,8 +208,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -403,8 +399,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -434,8 +429,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -465,8 +459,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -497,8 +490,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
