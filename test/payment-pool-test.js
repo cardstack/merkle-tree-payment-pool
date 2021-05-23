@@ -1,6 +1,6 @@
 import CumulativePaymentTree from '../lib/cumulative-payment-tree.js';
 import { assertRevert } from './helpers/utils';
-import {toChecksumAddress,toHex, soliditySha3} from "web3-utils"
+import {toHex, soliditySha3} from "web3-utils"
 import BN from "bn.js"
 
 const PaymentPool = artifacts.require('./PaymentPool.sol');
@@ -521,6 +521,20 @@ contract('PaymentPool', function(accounts) {
         assert.equal(proofBalance.toNumber(), paymentAmount - withdrawalAmount, 'the proof balance is correct');
         assert.equal(udpatedProofBalance.toNumber(), updatedPaymentAmount - withdrawalAmount, 'the updated proof balance is correct');
       });
+    });
+
+
+    describe("hash functions are accurate", function() {
+        let node;
+        beforeEach(function() {
+            node = payments[0] 
+        });
+        it("checksum/non-checksum addresses output same hash", function (){
+            assert.equal(soliditySha3({t: 'address', v: node["payee"]}, {t: "uint256", v: node["amount"] }), "0xdc1a3188990e6f49560e7f513c95ce1ef99669f20d04bf16e2d1f3e76480d8ef" )
+            assert.equal(soliditySha3({t: 'address', v: toHex(node["payee"])}, {t: "uint256", v: node["amount"] }), "0xdc1a3188990e6f49560e7f513c95ce1ef99669f20d04bf16e2d1f3e76480d8ef" )
+            assert.equal(soliditySha3({t: 'address', v: node["payee"].replace("0x","")}, {t: "uint256", v: node["amount"] }), "0xdc1a3188990e6f49560e7f513c95ce1ef99669f20d04bf16e2d1f3e76480d8ef" )
+            assert.equal(soliditySha3({t: 'address', v: toHex(node["payee"]).replace("0x","")}, {t: "uint256", v: node["amount"] }), "0xdc1a3188990e6f49560e7f513c95ce1ef99669f20d04bf16e2d1f3e76480d8ef" )
+        })
     });
   });
 });
