@@ -91,7 +91,7 @@ contract PaymentPool is Ownable {
 
 
   function splitIntoBytes32(bytes memory byteArray, uint256 numBytes32) internal pure returns (bytes32[] memory bytes32Array,
-                                                                                        bytes memory remainder) {
+                                                                                        bytes32[] memory remainder) {
     if ( byteArray.length % 32 != 0 ||
          byteArray.length < numBytes32.mul(32) ||
          byteArray.length.div(32) > 50) { // Arbitrarily limiting this function to an array of 50 bytes32's to conserve gas
