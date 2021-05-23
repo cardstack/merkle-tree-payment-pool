@@ -1,4 +1,5 @@
-import 'zeppelin-solidity/contracts/token/MintableToken.sol';
+pragma solidity 0.5.16;
 
-// Generic mintable ERC-20 token used by the tests
-contract Token is MintableToken { }
+import '@openzeppelin/contracts/token/ERC20/ERC20Mintable.sol';
+
+contract Token is ERC20Mintable { }

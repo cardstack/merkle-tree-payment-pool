@@ -40,7 +40,8 @@ contract('PaymentPool', function(accounts) {
       token = await Token.new();
       PaymentPool.link('MerkleProof', merkleProofLib.address);
       paymentPool = await PaymentPool.new(token.address);
-      initialBlockNumber = await web3.eth.blockNumber;
+      initialBlockNumber = await web3.eth.getBlockNumber(); 
+      
     });
 
     afterEach(async function() {
@@ -55,7 +56,7 @@ contract('PaymentPool', function(accounts) {
         assert.equal(paymentCycleNumber.toNumber(), 1, 'the payment cycle number is correct');
 
         let txn = await paymentPool.submitPayeeMerkleRoot(root);
-        let currentBlockNumber = await web3.eth.blockNumber;
+        let currentBlockNumber = await web3.eth.getBlockNumber();
         paymentCycleNumber = await paymentPool.numPaymentCycles();
 
         assert.equal(paymentCycleNumber.toNumber(), 2, "the payment cycle number is correct");

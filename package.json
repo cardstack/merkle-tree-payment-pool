@@ -26,6 +26,7 @@
     "url": "https://github.com/cardstack/merkle-tree-payment-pool/issues"
   },
   "devDependencies": {
+    "@openzeppelin/contracts": "2.5.0",
     "babel-polyfill": "^6.26.0",
     "babel-preset-es2015": "^6.24.1",
     "babel-preset-stage-2": "^6.24.1",
@@ -33,7 +34,11 @@
     "babel-register": "^6.26.0",
     "ethereumjs-util": "^5.1.3",
     "lodash": "^4.17.4",
-    "truffle": "^4.0.4",
-    "zeppelin-solidity": "^1.5.0"
-  }
+    "truffle": "^5.3.6"
+  },
+  "volta": {
+    "node": "10.24.1",
+    "yarn": "1.22.10"
+  },
+  "dependencies": {}
 }
