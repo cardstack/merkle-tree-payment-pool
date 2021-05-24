@@ -1,5 +1,6 @@
-require('babel-register');
-require('babel-polyfill');
+require('@babel/register');
+require("core-js/stable");
+require("regenerator-runtime/runtime");
 
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
