@@ -97,6 +97,8 @@ contract PaymentPool is Ownable {
          byteArray.length.div(32) > 50) { // Arbitrarily limiting this function to an array of 50 bytes32's to conserve gas
 
       bytes32Array = new bytes32[](0);
+      remainder = new bytes32[](0);
+      return (bytes32Array, remainder);
     }
 
     bytes32Array = new bytes32[](numBytes32);
