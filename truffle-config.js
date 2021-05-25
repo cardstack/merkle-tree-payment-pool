@@ -7,7 +7,7 @@ module.exports = {
   // to customize your Truffle configuration!
   compilers: {
     solc: {
-      version: "0.5.16", //default truffle (v5.3.6) solidity compiler 
+      version: "0.5.17", //default truffle (v5.3.6) solidity compiler 
     },
   },
 };
