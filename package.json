@@ -1,13 +1,13 @@
 {
   "name": "merkle-tree-payment-pool",
-  "description": "This is an implementation of a Merkle Tree based payment pool in Solidity for ERC-20 tokens. This project was inspired by this Ethereum research post: https://ethresear.ch/t/pooled-payments-scaling-solution-for-one-to-many-transactions/590. A longer description around the motivations behind this project is available here: ***TODO: Add medium post URL here***. This project includes a payment pool smart contract that leverages Merkle Trees. Also included is a JS lib to create Merkle Trees, derive Merkle roots, and Merkle proofs that have metadata attached to the proofs that aid this smart contract in managing the payment pool.",
+  "description": "This is an implementation of a Merkle Tree based payment pool in Solidity for ERC-20 tokens. This project was inspired by this Ethereum research post: https://ethresear.ch/t/pooled-payments-scaling-solution-for-one-to-many-transactions/590. A longer description around the motivations behind this project is available here: https://medium.com/cardstack/scalable-payment-pools-in-solidity-d97e45fc7c5c. This project includes a payment pool smart contract that leverages Merkle Trees. Also included is a JS lib to create Merkle Trees, derive Merkle roots, and Merkle proofs that have metadata attached to the proofs that aid this smart contract in managing the payment pool.",
   "version": "1.0.1",
   "main": "index.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "truffle test"
+    "test": "./node_modules/.bin/truffle test"
   },
   "repository": {
     "type": "git",
@@ -26,14 +26,20 @@
     "url": "https://github.com/cardstack/merkle-tree-payment-pool/issues"
   },
   "devDependencies": {
-    "babel-polyfill": "^6.26.0",
-    "babel-preset-es2015": "^6.24.1",
-    "babel-preset-stage-2": "^6.24.1",
-    "babel-preset-stage-3": "^6.24.1",
-    "babel-register": "^6.26.0",
+    "@babel/core": "^7.14.3",
+    "@babel/preset-env": "^7.14.2",
+    "@babel/register": "^7.13.16",
+    "@openzeppelin/contracts": "2.5.0",
+    "core-js": "^3.12.1",
     "ethereumjs-util": "^5.1.3",
     "lodash": "^4.17.4",
-    "truffle": "^4.0.4",
-    "zeppelin-solidity": "^1.5.0"
-  }
+    "regenerator-runtime": "^0.13.7",
+    "truffle": "^5.3.6",
+    "web3-utils": "^1.3.6"
+  },
+  "volta": {
+    "node": "14.16.1",
+    "yarn": "1.22.10"
+  },
+  "dependencies": {}
 }

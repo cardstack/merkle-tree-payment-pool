@@ -1,5 +1,6 @@
 import CumulativePaymentTree from '../lib/cumulative-payment-tree.js';
-import { assertRevert } from './helpers/utils';
+import { assertRevert, advanceBlock } from './helpers/utils';
+import {toHex, soliditySha3} from "web3-utils"
 
 const PaymentPool = artifacts.require('./PaymentPool.sol');
 const Token = artifacts.require('./Token.sol');
@@ -40,7 +41,8 @@ contract('PaymentPool', function(accounts) {
       token = await Token.new();
       PaymentPool.link('MerkleProof', merkleProofLib.address);
       paymentPool = await PaymentPool.new(token.address);
-      initialBlockNumber = await web3.eth.blockNumber;
+      initialBlockNumber = await web3.eth.getBlockNumber(); 
+      
     });
 
     afterEach(async function() {
@@ -55,7 +57,7 @@ contract('PaymentPool', function(accounts) {
         assert.equal(paymentCycleNumber.toNumber(), 1, 'the payment cycle number is correct');
 
         let txn = await paymentPool.submitPayeeMerkleRoot(root);
-        let currentBlockNumber = await web3.eth.blockNumber;
+        let currentBlockNumber = await web3.eth.getBlockNumber();
         paymentCycleNumber = await paymentPool.numPaymentCycles();
 
         assert.equal(paymentCycleNumber.toNumber(), 2, "the payment cycle number is correct");
@@ -78,8 +80,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         await paymentPool.submitPayeeMerkleRoot(updatedRoot);
 
@@ -153,8 +154,8 @@ contract('PaymentPool', function(accounts) {
       });
 
       it("garbage proof data returns a balance of 0 in payment pool", async function() {
-        let literalGarbage = "0x0123456789abcdef0123456789abdef0123456789abcdef0123456789abdef00";
-        let balance = await paymentPool.balanceForProofWithAddress(payee, web3.toHex(literalGarbage));
+        const randomProof = web3.utils.randomHex(32*5)
+        let balance = await paymentPool.balanceForProofWithAddress(payee, randomProof);
         assert.equal(balance.toNumber(), 0, "the balance is correct");
       });
 
@@ -165,8 +166,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -187,8 +187,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -208,8 +207,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -400,8 +398,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -431,8 +428,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -462,8 +458,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -494,8 +489,7 @@ contract('PaymentPool', function(accounts) {
         let updatedMerkleTree = new CumulativePaymentTree(updatedPayments);
         let updatedRoot = updatedMerkleTree.getHexRoot();
 
-        // do something that causes a block to be mined
-        await token.mint(accounts[0], 1);
+        await advanceBlock(web3)
 
         let paymentCycle = await paymentPool.numPaymentCycles();
         paymentCycle = paymentCycle.toNumber();
@@ -518,6 +512,20 @@ contract('PaymentPool', function(accounts) {
         assert.equal(proofBalance.toNumber(), paymentAmount - withdrawalAmount, 'the proof balance is correct');
         assert.equal(udpatedProofBalance.toNumber(), updatedPaymentAmount - withdrawalAmount, 'the updated proof balance is correct');
       });
+    });
+
+
+    describe("hash functions are accurate", function() {
+        let node;
+        beforeEach(function() {
+            node = payments[0] 
+        });
+        it("checksum/non-checksum addresses output same hash", function (){
+            assert.equal(soliditySha3({t: 'address', v: node["payee"]}, {t: "uint256", v: node["amount"] }), "0xdc1a3188990e6f49560e7f513c95ce1ef99669f20d04bf16e2d1f3e76480d8ef" )
+            assert.equal(soliditySha3({t: 'address', v: toHex(node["payee"])}, {t: "uint256", v: node["amount"] }), "0xdc1a3188990e6f49560e7f513c95ce1ef99669f20d04bf16e2d1f3e76480d8ef" )
+            assert.equal(soliditySha3({t: 'address', v: node["payee"].replace("0x","")}, {t: "uint256", v: node["amount"] }), "0xdc1a3188990e6f49560e7f513c95ce1ef99669f20d04bf16e2d1f3e76480d8ef" )
+            assert.equal(soliditySha3({t: 'address', v: toHex(node["payee"]).replace("0x","")}, {t: "uint256", v: node["amount"] }), "0xdc1a3188990e6f49560e7f513c95ce1ef99669f20d04bf16e2d1f3e76480d8ef" )
+        })
     });
   });
 });
