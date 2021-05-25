@@ -31,7 +31,7 @@
     "@babel/register": "^7.13.16",
     "@openzeppelin/contracts": "2.5.0",
     "core-js": "^3.12.1",
-    "ethereumjs-util": "^5.1.3",
+    "ethereumjs-util": "^7.0.10",
     "lodash": "^4.17.4",
     "regenerator-runtime": "^0.13.7",
     "truffle": "^5.3.6",
