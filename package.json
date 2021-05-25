@@ -26,6 +26,7 @@
     "url": "https://github.com/cardstack/merkle-tree-payment-pool/issues"
   },
   "devDependencies": {
+    "@babel/core": "^7.14.3",
     "@babel/preset-env": "^7.14.2",
     "@babel/register": "^7.13.16",
     "@openzeppelin/contracts": "2.5.0",
